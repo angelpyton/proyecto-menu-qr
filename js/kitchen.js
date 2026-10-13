@@ -54,7 +54,6 @@ async function init() {
     // Setup Realtime connection (Instant updates)
     setupRealtime();
 
-    /*
     // Background Sync Loop: Ensures data stays current even if Realtime is throttled/dropped
     // Runs every 5 seconds as a robust fallback for cross-device updates
     setInterval(async () => {
@@ -64,7 +63,6 @@ async function init() {
         ]);
         renderDashboard();
     }, 5000);
-    */
 
     // Initial render
     renderDashboard();
