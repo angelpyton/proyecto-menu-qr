@@ -8,6 +8,9 @@ let orders = [];
 let waiterCalls = [];
 let searchQuery = '';
 let activeMobileColumn = 'received';
+let latestOrdersFetchId = 0;
+let latestWaiterFetchId = 0;
+let backgroundSyncInProgress = false;
 // Keep optimistic kitchen actions visible if a poll that started earlier
 // returns stale order data after the status was changed.
 const orderStatusOverrides = new Map();
@@ -47,21 +50,26 @@ const DOM = {
 async function init() {
 
     setupEventListeners();
+    // Subscribe before the initial fetch so updates are not missed while data loads.
+    setupRealtime();
     await Promise.all([
         fetchActiveOrders(),
         fetchWaiterCalls()
     ]);
-    // Setup Realtime connection (Instant updates)
-    setupRealtime();
 
     // Background Sync Loop: Ensures data stays current even if Realtime is throttled/dropped
     // Runs every 2 seconds as a fallback if Realtime is delayed or unavailable
     setInterval(async () => {
-        await Promise.all([
-            fetchActiveOrders(),
-            fetchWaiterCalls()
-        ]);
-        renderDashboard();
+        if (backgroundSyncInProgress) return;
+        backgroundSyncInProgress = true;
+        try {
+            await Promise.all([
+                fetchActiveOrders(),
+                fetchWaiterCalls()
+            ]);
+        } finally {
+            backgroundSyncInProgress = false;
+        }
     }, 2000);
 
     // Initial render
@@ -157,6 +165,7 @@ function switchMobileColumn(columnId) {
  * Fetch orders that are not served yet, plus a small history of served orders
  */
 async function fetchActiveOrders() {
+    const fetchId = ++latestOrdersFetchId;
     try {
         
         // 1. Fetch all active orders (received, preparing, ready)
@@ -179,11 +188,21 @@ async function fetchActiveOrders() {
 
         const { data: activeData, error: activeError } = activeResult;
         const { data: servedData, error: servedError } = servedResult;
-        if (activeError) throw activeError;
-        if (servedError) throw servedError;
+        if (fetchId !== latestOrdersFetchId) return;
 
-        // Combine and update state
-        const allOrders = [...(activeData || []), ...(servedData || [])];
+        if (activeError) console.error('Error fetching active orders:', activeError.message);
+        if (servedError) console.error('Error fetching served orders:', servedError.message);
+        if (activeError && servedError) throw activeError;
+
+        // If one query fails, keep that status group's last known orders while
+        // still displaying fresh results from the successful query.
+        const activeOrders = activeError
+            ? orders.filter(order => ['received', 'preparing', 'ready'].includes(order.status))
+            : activeData || [];
+        const servedOrders = servedError
+            ? orders.filter(order => order.status === 'served')
+            : servedData || [];
+        const allOrders = [...activeOrders, ...servedOrders];
         
         // Use a Set to ensure uniqueness if any duplicates occur during merge
         const uniqueOrders = [];
@@ -206,6 +225,7 @@ async function fetchActiveOrders() {
         orders = uniqueOrders;
         renderDashboard();
     } catch (err) {
+        if (fetchId !== latestOrdersFetchId) return;
         console.error('CRITICAL: Error fetching orders:', err.message);
         // If we have no orders at all, maybe show a warning in the UI
         if (orders.length === 0) {
@@ -219,6 +239,7 @@ async function fetchActiveOrders() {
 }
 
 async function fetchWaiterCalls() {
+    const fetchId = ++latestWaiterFetchId;
     try {
         const { data, error } = await supabaseClient
             .from('waiter_calls')
@@ -227,9 +248,11 @@ async function fetchWaiterCalls() {
             .order('created_at', { ascending: true });
 
         if (error) throw error;
+        if (fetchId !== latestWaiterFetchId) return;
         waiterCalls = data || [];
         renderServiceAlerts();
     } catch (err) {
+        if (fetchId !== latestWaiterFetchId) return;
         console.error('Error fetching waiter calls:', err.message);
     }
 }
@@ -237,8 +260,6 @@ async function fetchWaiterCalls() {
 /**
  * Setup Realtime Listeners
  */
-let pollingInterval = null;
-
 function setupRealtime() {
     supabaseClient.removeAllChannels();
 
@@ -253,6 +274,7 @@ function setupRealtime() {
             handleOrderUpdate(payload);
         })
         .subscribe((status) => {
+            if (status === 'SUBSCRIBED') fetchActiveOrders();
         });
 
     // Waiter Calls Channel
@@ -266,12 +288,8 @@ function setupRealtime() {
             handleWaiterUpdate(payload);
         })
         .subscribe((status) => {
-            // No action needed for waiter status anymore
+            if (status === 'SUBSCRIBED') fetchWaiterCalls();
         });
-}
-
-function startPollingFallback() {
-    // Polling removed as per user request
 }
 
 /**
@@ -279,21 +297,24 @@ function startPollingFallback() {
  */
 function handleWaiterUpdate(payload) {
     const { eventType, new: newRecord, old: oldRecord } = payload;
+    // Ignore waiter-call polls that started before this Realtime event.
+    latestWaiterFetchId++;
 
     if (eventType === 'INSERT') {
-        if (newRecord.status === 'pending') {
+        if (newRecord.status === 'pending' &&
+            !waiterCalls.some(call => String(call.id) === String(newRecord.id))) {
             waiterCalls.push(newRecord);
             playNotification(); // Maybe a different sound eventually
         }
     } else if (eventType === 'UPDATE') {
         if (newRecord.status === 'resolved') {
-            waiterCalls = waiterCalls.filter(c => c.id !== newRecord.id);
+            waiterCalls = waiterCalls.filter(c => String(c.id) !== String(newRecord.id));
         } else {
-            const index = waiterCalls.findIndex(c => c.id === newRecord.id);
+            const index = waiterCalls.findIndex(c => String(c.id) === String(newRecord.id));
             if (index !== -1) waiterCalls[index] = newRecord;
         }
     } else if (eventType === 'DELETE') {
-        waiterCalls = waiterCalls.filter(c => c.id !== oldRecord.id);
+        waiterCalls = waiterCalls.filter(c => String(c.id) !== String(oldRecord.id));
     }
 
     renderServiceAlerts();
@@ -327,9 +348,10 @@ function renderServiceAlerts() {
  * Resolve Service Alert
  */
 async function resolveServiceAlert(id) {
+    latestWaiterFetchId++;
     try {
         // Optimistic UI
-        waiterCalls = waiterCalls.filter(c => c.id !== id);
+        waiterCalls = waiterCalls.filter(c => String(c.id) !== String(id));
         renderServiceAlerts();
 
         const { error } = await supabaseClient
@@ -349,6 +371,8 @@ async function resolveServiceAlert(id) {
  */
 function handleOrderUpdate(payload) {
     const { eventType, new: newRecord, old: oldRecord } = payload;
+    // An in-flight poll may contain an older snapshot than this Realtime event.
+    latestOrdersFetchId++;
 
     if (eventType === 'INSERT') {
         if (!orders.find(o => o.id === newRecord.id)) {
@@ -559,11 +583,16 @@ function getTimeInfo(timestamp) {
  * Update order status
  */
 async function updateStatus(id, newStatus) {
-    orderStatusOverrides.set(String(id), newStatus);
+    const orderKey = String(id);
+    const order = orders.find(item => String(item.id) === orderKey);
+    const previousStatus = order?.status;
+
+    // Keep an in-flight poll from replacing this immediate UI update.
+    latestOrdersFetchId++;
+    orderStatusOverrides.set(orderKey, newStatus);
     try {
         // Optimistic UI
-        const o = orders.find(o => String(o.id) === String(id));
-        if (o) o.status = newStatus;
+        if (order) order.status = newStatus;
         renderDashboard();
 
         const { error } = await supabaseClient
@@ -574,7 +603,11 @@ async function updateStatus(id, newStatus) {
         if (error) throw error;
     } catch (err) {
         console.error('Update failed:', err);
-        orderStatusOverrides.delete(String(id));
+        if (orderStatusOverrides.get(orderKey) === newStatus) {
+            orderStatusOverrides.delete(orderKey);
+            if (order && order.status === newStatus) order.status = previousStatus;
+        }
+        renderDashboard();
         await fetchActiveOrders();
     }
 }
