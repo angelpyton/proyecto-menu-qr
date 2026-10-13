@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es-419">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rannaghor | Management</title>
+    <title>Rannaghor | Administración</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -121,6 +121,44 @@
             padding: var(--space-xl) var(--space-lg);
             width: 100%;
         }
+
+        .products-section {
+            margin-bottom: var(--space-xl);
+            padding: var(--space-xl);
+            border: 1px solid var(--color-border);
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .products-section h2 { margin: 0 0 .4rem; }
+        .products-intro { margin: 0 0 var(--space-lg); color: var(--color-text-secondary); }
+        .product-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: var(--space-md);
+        }
+        .product-field { display: flex; flex-direction: column; gap: .45rem; }
+        .product-field label { color: var(--color-text-secondary); font-size: var(--text-sm); font-weight: 600; }
+        .product-field input, .product-field select {
+            width: 100%; min-height: 46px; padding: .7rem .85rem; color: #fff;
+            background: rgba(0, 0, 0, .35); border: 1px solid var(--color-border);
+            border-radius: var(--radius-md); font: inherit;
+        }
+        .product-field select option { color: #171717; }
+        .product-field input:focus, .product-field select:focus { outline: 2px solid var(--primary-orange); outline-offset: 1px; }
+        .product-form-actions { grid-column: 1 / -1; display: flex; gap: .75rem; flex-wrap: wrap; }
+        .product-message { min-height: 1.5rem; margin: .8rem 0 0; color: #a7f3d0; }
+        .product-table-wrap { overflow-x: auto; margin-top: var(--space-xl); }
+        .product-table { width: 100%; border-collapse: collapse; min-width: 650px; }
+        .product-table th, .product-table td { padding: .85rem .75rem; border-bottom: 1px solid var(--color-border); text-align: left; }
+        .product-table th { color: var(--color-text-secondary); font-size: var(--text-sm); }
+        .product-thumb { width: 54px; height: 54px; border-radius: 10px; object-fit: cover; background: #222; }
+        .product-actions { display: flex; gap: .5rem; }
+        .product-actions button { cursor: pointer; }
+        .product-edit { color: #fff; background: rgba(255, 140, 0, .18); border: 1px solid rgba(255, 140, 0, .45); }
+        .product-delete { color: #fecaca; background: rgba(220, 38, 38, .16); border: 1px solid rgba(248, 113, 113, .35); }
+        .product-actions button { padding: .45rem .7rem; border-radius: 8px; font: inherit; }
+        .products-empty { padding: 1.5rem; text-align: center !important; color: var(--color-text-secondary); }
 
         .nav-actions {
             display: flex;
@@ -309,6 +347,9 @@
                 flex-direction: column;
                 align-items: stretch;
             }
+
+            .product-form { grid-template-columns: 1fr; }
+            .products-section { padding: var(--space-lg); }
         }
     </style>
 </head>
@@ -338,6 +379,53 @@
     </nav>
 
     <div class="admin-container">
+        <section class="products-section" aria-labelledby="productsTitle">
+            <h2 id="productsTitle" class="selector-title">Administrar productos</h2>
+            <p class="products-intro">Agrega y administra los platos que quieras tener registrados en este navegador.</p>
+
+            <form id="productForm" class="product-form">
+                <input type="hidden" id="productId">
+                <div class="product-field">
+                    <label for="productName">Nombre del plato</label>
+                    <input id="productName" name="name" type="text" maxlength="100" required placeholder="Ej.: Milanesa con papas">
+                </div>
+                <div class="product-field">
+                    <label for="productPrice">Precio</label>
+                    <input id="productPrice" name="price" type="number" min="0.01" step="0.01" required placeholder="Ej.: 2500">
+                </div>
+                <div class="product-field">
+                    <label for="productCategory">Categoría</label>
+                    <select id="productCategory" name="category" required>
+                        <option value="bebidas">Bebidas</option>
+                        <option value="minutas">Minutas</option>
+                        <option value="entradas">Entradas</option>
+                        <option value="platos-principales">Platos principales</option>
+                        <option value="biriyani">Biryani</option>
+                        <option value="curry">Curry</option>
+                        <option value="kebab">Kebab</option>
+                        <option value="antojos">Antojitos</option>
+                        <option value="postres">Postres</option>
+                    </select>
+                </div>
+                <div class="product-field">
+                    <label for="productImage">Imagen del plato</label>
+                    <input id="productImage" name="image" type="file" accept="image/*">
+                </div>
+                <div class="product-form-actions">
+                    <button id="saveProductButton" class="btn btn-primary" type="submit">Guardar plato</button>
+                    <button id="cancelEditButton" class="btn btn-outline" type="button" hidden>Cancelar edición</button>
+                </div>
+            </form>
+            <p id="productMessage" class="product-message" role="status" aria-live="polite"></p>
+
+            <div class="product-table-wrap">
+                <table class="product-table">
+                    <thead><tr><th>Imagen</th><th>Plato</th><th>Precio</th><th>Categoría</th><th>Acciones</th></tr></thead>
+                    <tbody id="productsTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
         <main class="qr-management-section">
             <div class="management-header">
                 <h2 class="selector-title">Table Management</h2>
@@ -365,6 +453,173 @@
     </div>
 
     <script src="../js/management.js"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const SUPABASE_URL = 'https://gudjaroffkrwmsqvczip.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_NbuvsGvR625a6e9dIXAPZw_inbC3j5A';
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        (() => {
+            const form = document.getElementById('productForm');
+            const idInput = document.getElementById('productId');
+            const nameInput = document.getElementById('productName');
+            const priceInput = document.getElementById('productPrice');
+            const categoryInput = document.getElementById('productCategory');
+            const imageInput = document.getElementById('productImage');
+            const tableBody = document.getElementById('productsTableBody');
+            const message = document.getElementById('productMessage');
+            const saveButton = document.getElementById('saveProductButton');
+            const cancelButton = document.getElementById('cancelEditButton');
+            let currentImage = '';
+
+            const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[char]);
+
+            let products = [];
+
+            async function loadProducts() {
+                tableBody.innerHTML = '<tr><td class="products-empty" colspan="5">Cargando platos…</td></tr>';
+                const { data, error } = await supabase
+                    .from('platos')
+                    .select('id, nombre, precio, categoria, imagen_url');
+                if (error) {
+                    message.textContent = `No se pudieron cargar los platos: ${error.message}`;
+                    tableBody.innerHTML = '<tr><td class="products-empty" colspan="5">Error al cargar los platos.</td></tr>';
+                    return;
+                }
+                products = (data || []).map(plato => ({
+                    id: plato.id,
+                    name: plato.nombre,
+                    price: plato.precio,
+                    category: plato.categoria,
+                    image: plato.imagen_url
+                }));
+                renderProducts();
+            }
+
+            function renderProducts() {
+                if (!products.length) {
+                    tableBody.innerHTML = '<tr><td class="products-empty" colspan="5">Todavía no hay platos guardados.</td></tr>';
+                    return;
+                }
+
+                tableBody.innerHTML = products.map(product => `
+                    <tr>
+                        <td>${product.image ? `<img class="product-thumb" src="${escapeHTML(product.image)}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.hidden=true">` : '—'}</td>
+                        <td>${escapeHTML(product.name)}</td>
+                        <td>${new Intl.NumberFormat('es-419', { maximumFractionDigits: 2 }).format(product.price)}</td>
+                        <td>${escapeHTML(categoryLabelFor(product.category))}</td>
+                        <td><div class="product-actions">
+                            <button type="button" class="product-edit" data-action="edit" data-id="${escapeHTML(product.id)}">Editar</button>
+                            <button type="button" class="product-delete" data-action="delete" data-id="${escapeHTML(product.id)}">Eliminar</button>
+                        </div></td>
+                    </tr>`).join('');
+            }
+
+            function categoryLabelFor(category) {
+                const option = Array.from(categoryInput.options).find(item => item.value === category);
+                return option ? option.textContent : category || '—';
+            }
+
+            function resetForm() {
+                form.reset();
+                idInput.value = '';
+                currentImage = '';
+                saveButton.textContent = 'Guardar plato';
+                cancelButton.hidden = true;
+            }
+
+            function readImageAsBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => reject(new Error('No se pudo leer la imagen seleccionada.'));
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const name = nameInput.value.trim();
+                const price = Number(priceInput.value);
+                const category = categoryInput.value;
+                const selectedFile = imageInput.files[0];
+
+                if (!name || !Number.isFinite(price) || price <= 0) {
+                    message.textContent = 'Ingresa un nombre y un precio mayor que cero.';
+                    return;
+                }
+
+                saveButton.disabled = true;
+                try {
+                    const image = selectedFile ? await readImageAsBase64(selectedFile) : currentImage;
+                    const editingId = idInput.value;
+                    const productData = {
+                        nombre: name,
+                        precio: price,
+                        categoria: category,
+                        imagen_url: image
+                    };
+                    if (editingId) {
+                        const { error } = await supabase.from('platos').update(productData).eq('id', editingId);
+                        if (error) throw error;
+                        message.textContent = 'Plato actualizado.';
+                    } else {
+                        const { error } = await supabase.from('platos').insert([productData]);
+                        if (error) throw error;
+                        message.textContent = 'Plato guardado.';
+                    }
+
+                    resetForm();
+                    await loadProducts();
+                } catch (error) {
+                    message.textContent = error.message || 'No se pudo procesar la imagen.';
+                } finally {
+                    saveButton.disabled = false;
+                }
+            });
+
+            tableBody.addEventListener('click', async event => {
+                const button = event.target.closest('button[data-action]');
+                if (!button) return;
+                const product = products.find(item => String(item.id) === button.dataset.id);
+                if (!product) return;
+
+                if (button.dataset.action === 'edit') {
+                    idInput.value = product.id;
+                    nameInput.value = product.name;
+                    priceInput.value = product.price;
+                    categoryInput.value = product.category;
+                    imageInput.value = '';
+                    currentImage = product.image || '';
+                    saveButton.textContent = 'Guardar cambios';
+                    cancelButton.hidden = false;
+                    nameInput.focus();
+                    message.textContent = `Editando: ${product.name}`;
+                } else if (button.dataset.action === 'delete' && window.confirm(`¿Eliminar "${product.name}"?`)) {
+                    button.disabled = true;
+                    const { error } = await supabase.from('platos').delete().eq('id', product.id);
+                    if (error) {
+                        message.textContent = `No se pudo eliminar el plato: ${error.message}`;
+                        button.disabled = false;
+                        return;
+                    }
+                    if (idInput.value === String(product.id)) resetForm();
+                    message.textContent = 'Plato eliminado.';
+                    await loadProducts();
+                }
+            });
+
+            cancelButton.addEventListener('click', () => {
+                resetForm();
+                message.textContent = 'Edición cancelada.';
+            });
+
+            loadProducts();
+        })();
+    </script>
 </body>
 
 </html>

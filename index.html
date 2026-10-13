@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es-419">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description"
-        content="Rannaghor - Authentic Bangladeshi Cuisine. Order delicious food directly from your table.">
+        content="Rannaghor - Auténtica cocina bangladesí. Pide deliciosos platillos directamente desde tu mesa.">
     <meta name="theme-color" content="#1a0a00">
-    <title>Rannaghor - Authentic Bangladeshi Cuisine</title>
+    <title>Rannaghor - Auténtica cocina bangladesí</title>
 
     <!-- Preconnect for faster font loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,6 +26,7 @@
 
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -37,7 +38,7 @@
     <!-- ==================== -->
     <!-- NAVIGATION -->
     <!-- ==================== -->
-    <nav class="navbar" id="navbar" role="navigation" aria-label="Main navigation">
+    <nav class="navbar" id="navbar" role="navigation" aria-label="Navegación principal">
         <div class="navbar-container">
             <!-- Logo -->
             <a href="#" class="navbar-brand">
@@ -55,25 +56,25 @@
                 <!-- My Orders -->
                 <button id="viewOrdersBtn" class="btn btn-outline btn-navbar-action">
                     <span class="btn-icon"><i data-lucide="clipboard-list"></i></span>
-                    <span class="btn-text">My Orders</span>
+                    <span class="btn-text">Mis pedidos</span>
                     <span id="activeOrdersBadge" class="order-badge hidden">0</span>
                 </button>
 
                 <!-- Call Waiter (Desktop) -->
                 <button id="callWaiterBtn" class="btn btn-outline btn-waiter">
                     <span class="btn-icon"><i data-lucide="bell"></i></span>
-                    <span class="btn-text">Call Waiter</span>
+                    <span class="btn-text">Llamar al mesero</span>
                 </button>
 
                 <!-- Cart Button -->
-                <button id="cartBtn" class="btn btn-outline btn-navbar-action btn-cart" aria-label="View cart">
+                <button id="cartBtn" class="btn btn-outline btn-navbar-action btn-cart" aria-label="Ver carrito">
                     <span class="btn-icon">
                         <svg class="cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path
                                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                     </span>
-                    <span class="btn-text">Cart</span>
+                    <span class="btn-text">Carrito</span>
                     <span id="cartCount" class="cart-count hidden">0</span>
                 </button>
 
@@ -96,8 +97,8 @@
         <div class="cart-container">
             <!-- Cart Header -->
             <header class="cart-header">
-                <h2 id="cartTitle" class="cart-title">Your Order</h2>
-                <button id="closeCart" class="btn-close" aria-label="Close cart">
+                <h2 id="cartTitle" class="cart-title">Tu pedido</h2>
+                <button id="closeCart" class="btn-close" aria-label="Cerrar carrito">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -115,8 +116,8 @@
                 <!-- Empty Cart State -->
                 <div id="emptyCart" class="empty-cart">
                     <div class="empty-cart-icon"><i data-lucide="shopping-bag"></i></div>
-                    <p class="empty-cart-title">Your cart is empty</p>
-                    <p class="empty-cart-subtitle">Add some delicious items!</p>
+                    <p class="empty-cart-title">Tu carrito está vacío</p>
+                    <p class="empty-cart-subtitle">¡Agrega algo delicioso!</p>
                 </div>
             </div>
 
@@ -124,22 +125,22 @@
             <div id="cartSummary" class="cart-summary hidden">
                 <div class="summary-row">
                     <span>Subtotal</span>
-                    <span id="subtotal"><span class="currency">৳</span>0</span>
+                    <span id="subtotal"><span class="currency">Gs. </span>0</span>
                 </div>
                 <div class="summary-row">
-                    <span>VAT (5%)</span>
-                    <span id="vat"><span class="currency">৳</span>0</span>
+                    <span>IVA (5%)</span>
+                    <span id="vat"><span class="currency">Gs. </span>0</span>
                 </div>
                 <div class="summary-row total">
                     <span>Total</span>
-                    <span id="total" class="gradient-text"><span class="currency">৳</span>0</span>
+                    <span id="total" class="gradient-text"><span class="currency">Gs. </span>0</span>
                 </div>
 
                 <!-- Special Instructions -->
                 <div class="cart-instructions">
-                    <label for="instructions" class="instructions-label">Special Instructions (Optional)</label>
+                    <label for="instructions" class="instructions-label">Instrucciones especiales (opcional)</label>
                     <textarea id="instructions" class="instructions-input"
-                        placeholder="Any allergies or special requests?" rows="2"></textarea>
+                        placeholder="¿Tienes alguna alergia o solicitud especial?" rows="2"></textarea>
                 </div>
 
                 <!-- Payment Method Info -->
@@ -148,8 +149,8 @@
                         <div class="payment-option active">
                             <span class="payment-icon"><i data-lucide="banknote"></i></span>
                             <div class="payment-details">
-                                <span class="payment-label">Cash Payment</span>
-                                <span class="payment-sublabel">Please pay at the counter</span>
+                                <span class="payment-label">Pago en efectivo</span>
+                                <span class="payment-sublabel">Paga en la caja, por favor</span>
                             </div>
                         </div>
                     </div>
@@ -157,7 +158,7 @@
 
                 <!-- Place Order Button -->
                 <button id="placeOrder" class="btn btn-primary btn-place-order">
-                    <span>Place Order</span>
+                    <span>Confirmar pedido</span>
                     <i data-lucide="send"></i>
                 </button>
             </div>
@@ -177,7 +178,12 @@
             <div id="specials" class="specials-slider">
                 <!-- Slides will be dynamically injected here by JS -->
             </div>
-
+            <div class="hero-fallback">
+                <span class="hero-fallback-eyebrow">Rannaghor · Cocina auténtica</span>
+                <h1 id="heroTitle">Sabores que reúnen<br><span class="gradient-text">tradición y pasión</span></h1>
+                <p>Descubre nuestro menú de especialidades y disfruta cada bocado.</p>
+                <a class="btn btn-primary" href="#menu">Explorar el menú</a>
+            </div>
 
         </section>
 
@@ -189,10 +195,10 @@
                 <!-- Section Header -->
                 <header class="section-header">
                     <h2 id="menuTitle" class="section-title scroll-reveal">
-                        Our <span class="gradient-text">Regular Menu</span>
+                        Nuestro <span class="gradient-text">menú</span>
                     </h2>
                     <p class="section-subtitle scroll-reveal">
-                        Authentic Bangladeshi dishes made with love
+                        Platillos auténticos de Bangladés, preparados con cariño
                     </p>
                 </header>
 
@@ -203,9 +209,9 @@
                             <circle cx="11" cy="11" r="8" />
                             <path d="M21 21l-4.35-4.35" />
                         </svg>
-                        <input type="search" id="menuSearch" class="search-input" placeholder="Search dishes..."
-                            aria-label="Search menu">
-                        <button id="clearSearch" class="search-clear hidden" aria-label="Clear search">
+                        <input type="search" id="menuSearch" class="search-input" placeholder="Buscar platillos..."
+                            aria-label="Buscar en el menú">
+                        <button id="clearSearch" class="search-clear hidden" aria-label="Borrar búsqueda">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -214,14 +220,14 @@
                 </div>
 
                 <!-- Category Tabs -->
-                <div class="category-tabs scroll-reveal" role="tablist" aria-label="Menu categories">
+                <div class="category-tabs scroll-reveal" role="tablist" aria-label="Categorías del menú">
                     <button class="category-tab active" data-category="all" role="tab" aria-selected="true">
                         <span class="tab-icon"><i data-lucide="layout-grid"></i></span>
-                        <span class="tab-text">All</span>
+                        <span class="tab-text">Todo</span>
                     </button>
                     <button class="category-tab" data-category="biriyani" role="tab" aria-selected="false">
                         <span class="tab-icon"><i data-lucide="utensils-crossed"></i></span>
-                        <span class="tab-text">Biriyani</span>
+                        <span class="tab-text">Biryani</span>
                     </button>
                     <button class="category-tab" data-category="curry" role="tab" aria-selected="false">
                         <span class="tab-icon"><i data-lucide="soup"></i></span>
@@ -233,15 +239,15 @@
                     </button>
                     <button class="category-tab" data-category="snacks" role="tab" aria-selected="false">
                         <span class="tab-icon"><i data-lucide="cookie"></i></span>
-                        <span class="tab-text">Snacks</span>
+                        <span class="tab-text">Antojitos</span>
                     </button>
                     <button class="category-tab" data-category="dessert" role="tab" aria-selected="false">
                         <span class="tab-icon"><i data-lucide="cake-slice"></i></span>
-                        <span class="tab-text">Dessert</span>
+                        <span class="tab-text">Postres</span>
                     </button>
                     <button class="category-tab" data-category="drinks" role="tab" aria-selected="false">
                         <span class="tab-icon"><i data-lucide="cup-soda"></i></span>
-                        <span class="tab-text">Drinks</span>
+                        <span class="tab-text">Bebidas</span>
                     </button>
                 </div>
 
@@ -253,8 +259,8 @@
                 <!-- No Results Message -->
                 <div id="noResults" class="no-results hidden">
                     <div class="no-results-icon"><i data-lucide="search"></i></div>
-                    <p class="no-results-title">No dishes found</p>
-                    <p class="no-results-subtitle">Try a different search term</p>
+                    <p class="no-results-title">No encontramos platillos</p>
+                    <p class="no-results-subtitle">Prueba con otra búsqueda</p>
                 </div>
             </div>
         </section>
@@ -267,31 +273,31 @@
             <div class="section-container">
                 <header class="section-header">
                     <h2 id="featuresTitle" class="section-title scroll-reveal">
-                        Why <span class="gradient-text">Choose Us</span>
+                        ¿Por qué <span class="gradient-text">elegirnos?</span>
                     </h2>
                 </header>
 
                 <div class="features-grid">
                     <div class="feature-card scroll-reveal">
                         <div class="feature-icon"><i data-lucide="chef-hat"></i></div>
-                        <h3 class="feature-title">Expert Chefs</h3>
+                        <h3 class="feature-title">Chefs expertos</h3>
                         <p class="feature-description">Our chefs bring decades of experience in authentic
-                            Bangladeshi cuisine</p>
+                            cocina bangladesí</p>
                     </div>
                     <div class="feature-card scroll-reveal">
                         <div class="feature-icon"><i data-lucide="leaf"></i></div>
-                        <h3 class="feature-title">Fresh Ingredients</h3>
-                        <p class="feature-description">We source the freshest local ingredients daily</p>
+                        <h3 class="feature-title">Ingredientes frescos</h3>
+                        <p class="feature-description">Cada día elegimos los ingredientes locales más frescos</p>
                     </div>
                     <div class="feature-card scroll-reveal">
                         <div class="feature-icon"><i data-lucide="zap"></i></div>
-                        <h3 class="feature-title">Quick Service</h3>
-                        <p class="feature-description">Hot food served to your table in 15-20 minutes</p>
+                        <h3 class="feature-title">Servicio rápido</h3>
+                        <p class="feature-description">Llevamos la comida caliente a tu mesa en 15 a 20 minutos</p>
                     </div>
                     <div class="feature-card scroll-reveal">
                         <div class="feature-icon"><i data-lucide="check-circle"></i></div>
-                        <h3 class="feature-title">Quality Promise</h3>
-                        <p class="feature-description">100% satisfaction guaranteed or we'll make it right</p>
+                        <h3 class="feature-title">Calidad garantizada</h3>
+                        <p class="feature-description">Tu satisfacción está garantizada; si algo no está bien, lo solucionamos</p>
                     </div>
                 </div>
             </div>
@@ -314,8 +320,7 @@
                             </div>
                         </div>
                         <p class="footer-description">
-                            Authentic Bangladeshi cuisine. Every dish tells a story of tradition and
-                            love.
+                            Auténtica cocina bangladesí. Cada platillo cuenta una historia de tradición y cariño.
                         </p>
                         <div class="social-links">
                             <a href="#" class="social-link" aria-label="Facebook">
@@ -341,7 +346,7 @@
 
                     <!-- Contact Column -->
                     <div class="footer-column">
-                        <h4 class="footer-heading">Contact</h4>
+                        <h4 class="footer-heading">Contacto</h4>
                         <ul class="footer-links">
                             <li>
                                 <span class="footer-icon"><i data-lucide="map-pin"></i></span>
@@ -360,31 +365,31 @@
 
                     <!-- Hours Column -->
                     <div class="footer-column">
-                        <h4 class="footer-heading">Hours</h4>
+                        <h4 class="footer-heading">Horario</h4>
                         <ul class="footer-links">
                             <li>
-                                <span class="day">Sunday - Thursday</span>
-                                <span class="time">11AM - 11PM</span>
+                                <span class="day">Domingo a jueves</span>
+                                <span class="time">11:00 a. m. - 11:00 p. m.</span>
                             </li>
                             <li>
-                                <span class="day">Friday</span>
-                                <span class="time">1PM - 11PM</span>
+                                <span class="day">Viernes</span>
+                                <span class="time">1:00 p. m. - 11:00 p. m.</span>
                             </li>
                             <li>
-                                <span class="day">Saturday</span>
-                                <span class="time">11AM - 12AM</span>
+                                <span class="day">Sábado</span>
+                                <span class="time">11:00 a. m. - 12:00 a. m.</span>
                             </li>
                         </ul>
                     </div>
 
                     <!-- Quick Links Column -->
                     <div class="footer-column">
-                        <h4 class="footer-heading">Quick Links</h4>
+                        <h4 class="footer-heading">Enlaces rápidos</h4>
                         <ul class="footer-links">
-                            <li><a href="#menu">Menu</a></li>
-                            <li><a href="#specials">Today's Specials</a></li>
-                            <li><a href="#">About Us</a></li>
-                            <li><a href="#">Privacy Policy</a></li>
+                            <li><a href="#menu">Menú</a></li>
+                            <li><a href="#specials">Especiales del día</a></li>
+                            <li><a href="#">Sobre nosotros</a></li>
+                            <li><a href="#">Política de privacidad</a></li>
                         </ul>
                     </div>
                 </div>
@@ -392,12 +397,10 @@
                 <!-- Footer Bottom -->
                 <div class="footer-bottom">
                     <p>
-                        © 2026 Rannaghor. All rights reserved.
+                        © 2026 Rannaghor. Todos los derechos reservados.
                         <br>
-                        Designed & Developed by
-                        <a href="https://github.com/tamimtxd" target="_blank">
-                            Tamim
-                        </a>
+                        Diseñado y desarrollado por
+                        Arandu Systems
                     </p>
                 </div>
             </div>
@@ -414,8 +417,8 @@
         <div class="modal-container">
             <div class="modal-content modal-md">
                 <header class="modal-header">
-                    <h3 id="ordersModalTitle" class="modal-title">Order History</h3>
-                    <button id="closeOrdersModal" class="btn-close" aria-label="Close">
+                    <h3 id="ordersModalTitle" class="modal-title">Historial de pedidos</h3>
+                    <button id="closeOrdersModal" class="btn-close" aria-label="Cerrar">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -427,8 +430,8 @@
                     </div>
                     <div id="noOrders" class="empty-state">
                         <div class="empty-state-icon"><i data-lucide="clipboard-list"></i></div>
-                        <p class="empty-state-title">No orders yet</p>
-                        <p class="empty-state-subtitle">Your order history will appear here</p>
+                        <p class="empty-state-title">Aún no tienes pedidos</p>
+                        <p class="empty-state-subtitle">Aquí aparecerá tu historial de pedidos</p>
                     </div>
                 </div>
             </div>
@@ -443,13 +446,13 @@
             <div class="modal-content modal-md">
                 <header class="modal-header">
                     <div class="modal-header-left">
-                        <h3 id="trackOrderModalTitle" class="modal-title">Track Order</h3>
+                        <h3 id="trackOrderModalTitle" class="modal-title">Seguir pedido</h3>
                         <div class="live-badge">
                             <div class="live-dot"></div>
-                            <span>Live</span>
+                            <span>En vivo</span>
                         </div>
                     </div>
-                    <button id="closeTrackOrderModal" class="btn-close" aria-label="Close">
+                    <button id="closeTrackOrderModal" class="btn-close" aria-label="Cerrar">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -461,8 +464,8 @@
                     </div>
                     <div id="noActiveOrders" class="empty-state hidden">
                         <div class="empty-state-icon">✅</div>
-                        <p class="empty-state-title">No active orders</p>
-                        <p class="empty-state-subtitle">All your orders have been served!</p>
+                        <p class="empty-state-title">No tienes pedidos activos</p>
+                        <p class="empty-state-subtitle">¡Ya se entregaron todos tus pedidos!</p>
                     </div>
                 </div>
             </div>
@@ -482,32 +485,32 @@
                         </svg>
                     </div>
 
-                    <h3 id="successModalTitle" class="success-title">Order Placed!</h3>
-                    <p class="success-subtitle">Your order has been sent to the kitchen</p>
-                    <p class="order-number">Order #<span id="orderNumber">12345</span></p>
+                    <h3 id="successModalTitle" class="success-title">¡Pedido confirmado!</h3>
+                    <p class="success-subtitle">Enviamos tu pedido a la cocina</p>
+                    <p class="order-number">Pedido n.º <span id="orderNumber">12345</span></p>
 
                     <!-- Info Cards -->
                     <div class="success-info-grid">
                         <div class="success-info-card">
                             <div class="info-icon"><i data-lucide="clock"></i></div>
-                            <p class="info-label">Estimated Time</p>
-                            <p class="info-value">15-20 min</p>
+                            <p class="info-label">Tiempo estimado</p>
+                            <p class="info-value">15 a 20 min</p>
                         </div>
                         <div class="success-info-card">
                             <div class="info-icon"><i data-lucide="armchair"></i></div>
-                            <p class="info-label">Delivering to</p>
-                            <p class="info-value">Table <span id="successTableNumber">-</span></p>
+                            <p class="info-label">Para la</p>
+                            <p class="info-value">Mesa <span id="successTableNumber">-</span></p>
                         </div>
                     </div>
 
                     <!-- Tip Message -->
                     <div class="success-tip">
-                        <p><i data-lucide="info" class="inline-icon"></i> Tap <strong>"Track Order"</strong> button to
-                            see real-time status updates</p>
+                        <p><i data-lucide="info" class="inline-icon"></i> Pulsa el botón <strong>"Seguir pedido"</strong> para
+                            ver las actualizaciones en tiempo real</p>
                     </div>
 
                     <button id="closeSuccessModal" class="btn btn-primary btn-block">
-                        Continue Ordering
+                        Seguir pidiendo
                     </button>
                 </div>
             </div>
@@ -521,7 +524,7 @@
         <div class="modal-backdrop"></div>
         <div class="modal-container">
             <div class="modal-content modal-md">
-                <button id="closeItemModal" class="btn-close modal-close-top" aria-label="Close">
+                <button id="closeItemModal" class="btn-close modal-close-top" aria-label="Cerrar">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -539,31 +542,31 @@
                                     <i data-lucide="star" class="icon-star-filled"></i>
                                 </div>
                                 <span id="itemModalAvgRating" class="rating-number">0.0</span>
-                                <span id="itemModalRatingCount" class="rating-count">(0 reviews)</span>
+                                <span id="itemModalRatingCount" class="rating-count">(0 reseñas)</span>
                             </div>
                         </div>
 
                         <div class="item-modal-details-box">
                             <div class="item-modal-header-info">
-                                <h3 id="itemModalTitle" class="item-title-lg">Item Name</h3>
-                                <p id="itemModalDesc" class="item-desc-md">Description</p>
+                                <h3 id="itemModalTitle" class="item-title-lg">Nombre del platillo</h3>
+                                <p id="itemModalDesc" class="item-desc-md">Descripción</p>
                             </div>
 
                             <div class="item-modal-pricing-row">
-                                <span id="itemModalPrice" class="item-price-lg">৳0</span>
+                                <span id="itemModalPrice" class="item-price-lg">Gs. 0</span>
                                 <div class="item-qty-control">
                                     <button class="qty-btn-v2" id="itemQtyMinus"
-                                        aria-label="Decrease quantity">−</button>
+                                        aria-label="Reducir cantidad">−</button>
                                     <span class="qty-val-v2" id="itemQtyValue">1</span>
                                     <button class="qty-btn-v2" id="itemQtyPlus"
-                                        aria-label="Increase quantity">+</button>
+                                        aria-label="Aumentar cantidad">+</button>
                                 </div>
                             </div>
 
                             <button id="addItemToCart" class="btn btn-primary btn-add-cart-v2">
-                                <span>Add to Cart</span>
+                                <span>Agregar al carrito</span>
                                 <span class="btn-divider"></span>
-                                <span id="itemTotalPrice">৳0</span>
+                                <span id="itemTotalPrice">Gs. 0</span>
                             </button>
                         </div>
                     </div>
@@ -571,12 +574,12 @@
                     <!-- Right Column: Reviews -->
                     <div class="item-modal-right">
                         <div class="reviews-section">
-                            <h4 class="reviews-section-title">CUSTOMER REVIEWS</h4>
+                            <h4 class="reviews-section-title">RESEÑAS DE CLIENTES</h4>
                             <div id="itemReviewsList" class="reviews-scroll-area">
                                 <!-- Reviews inserted by JS -->
                             </div>
                             <div id="noReviews" class="no-reviews-placeholder">
-                                <span>No reviews yet</span>
+                                <span>Aún no hay reseñas</span>
                             </div>
                         </div>
                     </div>
@@ -594,25 +597,25 @@
                 <div id="ratingView">
                     <header class="modal-header">
                         <div>
-                            <h3 id="ratingModalTitle" class="modal-title">Rate Your Food</h3>
-                            <p class="rating-order-id">Order #<span id="ratingOrderNumber">-</span></p>
+                            <h3 id="ratingModalTitle" class="modal-title">Califica tus platillos</h3>
+                            <p class="rating-order-id">Pedido n.º <span id="ratingOrderNumber">-</span></p>
                         </div>
-                        <button id="closeRatingModal" class="btn-close" aria-label="Close">
+                        <button id="closeRatingModal" class="btn-close" aria-label="Cerrar">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </header>
                     <div class="modal-body">
-                        <p class="rating-subtitle">How was each dish? Tap the stars to rate!</p>
+                        <p class="rating-subtitle">¿Qué te pareció cada platillo? ¡Toca las estrellas para calificarlo!</p>
                         <div id="ratingItemsList" class="rating-items-list">
                             <!-- Per-item rating rows inserted by JS -->
                         </div>
                     </div>
                     <div class="rating-actions">
-                        <button id="skipRating" class="btn btn-outline">Skip</button>
+                        <button id="skipRating" class="btn btn-outline">Omitir</button>
                         <button id="submitRating" class="btn btn-primary">
-                            <span>Submit</span>
+                            <span>Enviar</span>
                         </button>
                     </div>
                 </div>
@@ -630,7 +633,7 @@
     <div id="floatingTrackOrder" class="floating-track hidden">
         <button id="floatingTrackBtn" class="fab fab-track">
             <div class="live-dot"></div>
-            <span class="fab-text">Track Order</span>
+            <span class="fab-text">Seguir pedido</span>
             <span id="floatingOrderCount" class="fab-badge">1</span>
         </button>
     </div>
@@ -641,15 +644,13 @@
     </div>
 
     <!-- Back to Top Button -->
-    <button id="backToTop" class="back-to-top hidden" aria-label="Back to top">
+    <button id="backToTop" class="back-to-top hidden" aria-label="Volver arriba">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 15l-6-6-6 6" />
         </svg>
     </button>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-config.js"></script>
     <script src="js/script.js"></script>
 </body>
 

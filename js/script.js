@@ -3,6 +3,14 @@
    Complete JavaScript Application (FIXED)
    ============================================ */
 
+const SUPABASE_URL = 'https://gudjaroffkrwmsqvczip.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_NbuvsGvR625a6e9dIXAPZw_inbC3j5A';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const kitchenSupabaseClient = window.supabase.createClient(
+    'https://iljzsquigtcpxigsrqay.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsanpzcXVpZ3RjcHhpZ3NycWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMTA5MTEsImV4cCI6MjA4NDU4NjkxMX0.dNRDvi5o-qTvRF0Pcl3frWP9EWPVEsDq_pQ0Ymp0Dyw'
+);
+
 // ==========================================
 // 1. CONFIGURATION & DATA
 // ==========================================
@@ -32,9 +40,9 @@ const Z_INDEX = {
 
 const CONFIG = {
     vatRate: 0.05,
-    currency: '৳',  // Fixed Issue #1: XSS - Changed from HTML to plain text
-    currencySymbol: '৳',
-    estimatedTime: '15-20 min',
+    currency: 'Gs. ',
+    currencySymbol: 'Gs. ',
+    estimatedTime: '15 a 20 min',
     orderStatusDelay: {
         preparing: TIMINGS.ORDER_STATUS_PREPARING,
         ready: TIMINGS.ORDER_STATUS_READY,
@@ -47,69 +55,69 @@ const CONFIG = {
 // Menu Items Data (Fallback data)
 let menuItems = [
     // Biriyani
-    { id: 1, name: "Kacchi Biriyani", category: "biriyani", price: 350, image: "assets/images/food/kacchi-biriyani.jpg", desc: "Aromatic mutton biriyani with potatoes", popular: true },
-    { id: 2, name: "Chicken Biriyani", category: "biriyani", price: 280, image: "assets/images/food/chicken-biriyani.jpg", desc: "Fragrant rice with tender chicken pieces" },
-    { id: 3, name: "Beef Tehari", category: "biriyani", price: 300, image: "assets/images/food/beef-tehari.jpg", desc: "Spiced beef with aromatic rice" },
-    { id: 4, name: "Morog Polao", category: "biriyani", price: 320, image: "assets/images/food/morog-polao.jpg", desc: "Chicken with fragrant pulao rice" },
+    { id: 1, name: "Kacchi Biriyani", category: "biriyani", price: 350, image: "assets/images/food/kacchi-biriyani.jpg", desc: "Biryani aromático de cordero con papas", popular: true },
+    { id: 2, name: "Chicken Biriyani", category: "biriyani", price: 280, image: "assets/images/food/chicken-biriyani.jpg", desc: "Arroz aromático con tiernos trozos de pollo" },
+    { id: 3, name: "Beef Tehari", category: "biriyani", price: 300, image: "assets/images/food/beef-tehari.jpg", desc: "Carne de res especiada con arroz aromático" },
+    { id: 4, name: "Morog Polao", category: "biriyani", price: 320, image: "assets/images/food/morog-polao.jpg", desc: "Pollo con arroz pulao aromático" },
 
     // Curry
-    { id: 5, name: "Chicken Rezala", category: "curry", price: 320, image: "assets/images/food/chicken-rezala.jpg", desc: "Creamy white curry with tender chicken" },
-    { id: 6, name: "Mutton Bhuna", category: "curry", price: 380, image: "assets/images/food/mutton-bhuna.jpg", desc: "Slow-cooked mutton in rich spices", popular: true },
-    { id: 7, name: "Chingri Malai", category: "curry", price: 450, image: "assets/images/food/chingri-malai.jpg", desc: "Prawns in coconut milk curry" },
-    { id: 8, name: "Ilish Bhapa", category: "curry", price: 500, image: "assets/images/food/ilish-bhapa.jpg", desc: "Steamed hilsa in mustard paste" },
-    { id: 9, name: "Beef Kala Bhuna", category: "curry", price: 360, image: "assets/images/food/beef-kala-bhuna.jpg", desc: "Chittagong style dark beef curry" },
-    { id: 10, name: "Chicken Kosha", category: "curry", price: 280, image: "assets/images/food/chicken-kosha.jpg", desc: "Bengali style slow-cooked chicken" },
+    { id: 5, name: "Chicken Rezala", category: "curry", price: 320, image: "assets/images/food/chicken-rezala.jpg", desc: "Curry cremoso de salsa blanca con pollo tierno" },
+    { id: 6, name: "Mutton Bhuna", category: "curry", price: 380, image: "assets/images/food/mutton-bhuna.jpg", desc: "Cordero cocinado a fuego lento con especias intensas", popular: true },
+    { id: 7, name: "Chingri Malai", category: "curry", price: 450, image: "assets/images/food/chingri-malai.jpg", desc: "Camarones al curry con leche de coco" },
+    { id: 8, name: "Ilish Bhapa", category: "curry", price: 500, image: "assets/images/food/ilish-bhapa.jpg", desc: "Pescado hilsa al vapor con pasta de mostaza" },
+    { id: 9, name: "Beef Kala Bhuna", category: "curry", price: 360, image: "assets/images/food/beef-kala-bhuna.jpg", desc: "Curry oscuro de res al estilo de Chittagong" },
+    { id: 10, name: "Chicken Kosha", category: "curry", price: 280, image: "assets/images/food/chicken-kosha.jpg", desc: "Pollo cocinado a fuego lento al estilo bengalí" },
 
     // Kebab
-    { id: 11, name: "Chicken Tikka", category: "kebab", price: 280, image: "assets/images/food/chicken-tikka.jpg", desc: "Grilled marinated chicken pieces" },
-    { id: 12, name: "Beef Seekh Kebab", category: "kebab", price: 320, image: "assets/images/food/beef-seekh-kebab.jpg", desc: "Spiced minced beef on skewers" },
-    { id: 13, name: "Mutton Boti Kebab", category: "kebab", price: 350, image: "assets/images/food/mutton-boti-kebab.jpg", desc: "Tender mutton cubes grilled" },
-    { id: 14, name: "Tangri Kebab", category: "kebab", price: 300, image: "assets/images/food/tangri-kebab.jpg", desc: "Marinated chicken drumsticks", popular: true },
-    { id: 15, name: "Reshmi Kebab", category: "kebab", price: 300, image: "assets/images/food/reshmi-kebab.jpg", desc: "Soft and silky chicken kebab" },
+    { id: 11, name: "Chicken Tikka", category: "kebab", price: 280, image: "assets/images/food/chicken-tikka.jpg", desc: "Trozos de pollo marinado a la parrilla" },
+    { id: 12, name: "Beef Seekh Kebab", category: "kebab", price: 320, image: "assets/images/food/beef-seekh-kebab.jpg", desc: "Carne de res molida y especiada en brocheta" },
+    { id: 13, name: "Mutton Boti Kebab", category: "kebab", price: 350, image: "assets/images/food/mutton-boti-kebab.jpg", desc: "Tiernos cubos de cordero a la parrilla" },
+    { id: 14, name: "Tangri Kebab", category: "kebab", price: 300, image: "assets/images/food/tangri-kebab.jpg", desc: "Muslos de pollo marinados", popular: true },
+    { id: 15, name: "Reshmi Kebab", category: "kebab", price: 300, image: "assets/images/food/reshmi-kebab.jpg", desc: "Kebab de pollo suave y jugoso" },
 
     // Snacks
-    { id: 16, name: "Samosa", category: "snacks", price: 35, image: "assets/images/food/samosa.jpg", desc: "Crispy pastry with spiced filling (2 pcs)" },
-    { id: 17, name: "Singara", category: "snacks", price: 30, image: "assets/images/food/singara.jpg", desc: "Bengali style potato singara (2 pcs)" },
-    { id: 18, name: "Fuchka", category: "snacks", price: 60, image: "assets/images/food/fuchka.jpg", desc: "Crispy shells with tangy water (6 pcs)", popular: true },
-    { id: 19, name: "Chotpoti", category: "snacks", price: 80, image: "assets/images/food/chotpoti.jpg", desc: "Spicy chickpea street food" },
-    { id: 20, name: "Jhalmuri", category: "snacks", price: 50, image: "assets/images/food/jhalmuri.jpg", desc: "Spiced puffed rice mix" },
-    { id: 21, name: "Peyaju", category: "snacks", price: 30, image: "assets/images/food/peyaju.jpg", desc: "Crispy onion fritters (5 pcs)" },
-    { id: 22, name: "Beguni", category: "snacks", price: 35, image: "assets/images/food/beguni.jpg", desc: "Fried eggplant fritters (4 pcs)" },
+    { id: 16, name: "Samosa", category: "snacks", price: 35, image: "assets/images/food/samosa.jpg", desc: "Empanaditas crujientes con relleno especiado (2 piezas)" },
+    { id: 17, name: "Singara", category: "snacks", price: 30, image: "assets/images/food/singara.jpg", desc: "Singara de papa al estilo bengalí (2 piezas)" },
+    { id: 18, name: "Fuchka", category: "snacks", price: 60, image: "assets/images/food/fuchka.jpg", desc: "Bocaditos crujientes con agua especiada y ácida (6 piezas)", popular: true },
+    { id: 19, name: "Chotpoti", category: "snacks", price: 80, image: "assets/images/food/chotpoti.jpg", desc: "Comida callejera picante de garbanzos" },
+    { id: 20, name: "Jhalmuri", category: "snacks", price: 50, image: "assets/images/food/jhalmuri.jpg", desc: "Mezcla especiada de arroz inflado" },
+    { id: 21, name: "Peyaju", category: "snacks", price: 30, image: "assets/images/food/peyaju.jpg", desc: "Buñuelos crujientes de cebolla (5 piezas)" },
+    { id: 22, name: "Beguni", category: "snacks", price: 35, image: "assets/images/food/beguni.jpg", desc: "Buñuelos de berenjena (4 piezas)" },
 
     // Dessert
-    { id: 23, name: "Roshogolla", category: "dessert", price: 40, image: "assets/images/food/roshogolla.jpg", desc: "Soft cheese balls in syrup (2 pcs)" },
-    { id: 24, name: "Mishti Doi", category: "dessert", price: 60, image: "assets/images/food/mishti-doi.jpg", desc: "Sweet fermented yogurt", popular: true },
-    { id: 25, name: "Chomchom", category: "dessert", price: 50, image: "assets/images/food/chomchom.jpg", desc: "Oval shaped sweet (2 pcs)" },
-    { id: 26, name: "Firni", category: "dessert", price: 70, image: "assets/images/food/firni.jpg", desc: "Rice pudding with nuts" },
-    { id: 27, name: "Jilapi", category: "dessert", price: 80, image: "assets/images/food/jilapi.jpg", desc: "Crispy sweet spirals" },
-    { id: 28, name: "Rasmalai", category: "dessert", price: 90, image: "assets/images/food/rasmalai.jpg", desc: "Cheese patties in sweet milk (2 pcs)" },
+    { id: 23, name: "Roshogolla", category: "dessert", price: 40, image: "assets/images/food/roshogolla.jpg", desc: "Bolitas suaves de queso en almíbar (2 piezas)" },
+    { id: 24, name: "Mishti Doi", category: "dessert", price: 60, image: "assets/images/food/mishti-doi.jpg", desc: "Yogur fermentado y dulce", popular: true },
+    { id: 25, name: "Chomchom", category: "dessert", price: 50, image: "assets/images/food/chomchom.jpg", desc: "Dulce ovalado (2 piezas)" },
+    { id: 26, name: "Firni", category: "dessert", price: 70, image: "assets/images/food/firni.jpg", desc: "Arroz con leche y frutos secos" },
+    { id: 27, name: "Jilapi", category: "dessert", price: 80, image: "assets/images/food/jilapi.jpg", desc: "Espirales dulces y crujientes" },
+    { id: 28, name: "Rasmalai", category: "dessert", price: 90, image: "assets/images/food/rasmalai.jpg", desc: "Tortitas de queso en leche dulce (2 piezas)" },
 
     // Drinks
-    { id: 29, name: "Borhani", category: "drinks", price: 60, image: "assets/images/food/borhani.jpg", desc: "Spiced yogurt drink", popular: true },
-    { id: 30, name: "Lassi", category: "drinks", price: 80, image: "assets/images/food/lassi.jpg", desc: "Sweet yogurt smoothie" },
-    { id: 31, name: "Mango Lassi", category: "drinks", price: 100, image: "assets/images/food/mango-lassi.jpg", desc: "Mango flavored lassi" },
-    { id: 32, name: "Tea", category: "drinks", price: 30, image: "assets/images/food/tea.jpg", desc: "Traditional milk tea" },
-    { id: 33, name: "Coffee", category: "drinks", price: 70, image: "assets/images/food/coffee.jpg", desc: "Rich aromatic ground coffee" },
-    { id: 34, name: "Lemonade", category: "drinks", price: 40, image: "assets/images/food/lemonade.jpg", desc: "Fresh lemon juice blended with cooling mint leaves" },
+    { id: 29, name: "Borhani", category: "drinks", price: 60, image: "assets/images/food/borhani.jpg", desc: "Bebida de yogur con especias", popular: true },
+    { id: 30, name: "Lassi", category: "drinks", price: 80, image: "assets/images/food/lassi.jpg", desc: "Batido dulce de yogur" },
+    { id: 31, name: "Mango Lassi", category: "drinks", price: 100, image: "assets/images/food/mango-lassi.jpg", desc: "Lassi con sabor a mango" },
+    { id: 32, name: "Tea", category: "drinks", price: 30, image: "assets/images/food/tea.jpg", desc: "Té tradicional con leche" },
+    { id: 33, name: "Coffee", category: "drinks", price: 70, image: "assets/images/food/coffee.jpg", desc: "Café molido, intenso y aromático" },
+    { id: 34, name: "Lemonade", category: "drinks", price: 40, image: "assets/images/food/lemonade.jpg", desc: "Jugo de limón fresco con hojas de menta" },
 ];
 
 // Special Items Data (Fallback data)
 let specialItems = [
     {
         id: 'special1',
-        name: "Whole Tandoori Chicken",
+        name: "Pollo tandoori entero",
         price: 600,
         originalPrice: 650,
         image: "assets/images/food/whole-tandoori-chicken.jpg",
-        desc: "Succulent whole chicken marinated in spiced yogurt and slow-roasted in a traditional clay oven",
+        desc: "Pollo entero marinado en yogur especiado y asado lentamente en un horno tradicional de barro",
         category: "kebab"
     },
     {
         id: 'special2',
-        name: "Mutton Leg Roast",
+        name: "Pierna de cordero asada",
         price: 1200,
         image: "assets/images/food/mutton-leg-roast.jpg",
-        desc: "A feast-worthy whole mutton leg slow-roasted with aromatic spices and served with saffron pulao",
+        desc: "Una pierna entera de cordero asada lentamente con especias aromáticas y servida con pulao al azafrán",
         category: "meat"
     }
 ];
@@ -294,50 +302,39 @@ function syncActiveOrders() {
  * Fetch menu items from Supabase
  */
 async function fetchMenuItems() {
-    if (typeof SUPABASE_URL === 'undefined' || SUPABASE_URL === 'YOUR_SUPABASE_URL') {
-        console.warn('Supabase not configured. Using fallback menu data.');
-        return;
-    }
-
     try {
         const { data, error } = await supabaseClient
-            .from('menu_items')
+            .from('platos')
             .select('*');
 
         if (error) throw error;
 
-        if (data && data.length > 0) {
-            // Map Supabase data to local format if necessary
-            const remoteMenuItems = data.filter(item => !item.is_special).map(item => ({
-                id: item.id,
-                name: item.name,
-                category: item.category,
-                price: item.price,
-                image: item.image_url || `assets/images/food/${item.name.toLowerCase().replace(/ /g, '-')}.jpg`,
-                desc: item.description,
-                popular: item.popular
-            }));
+        const categoryMap = {
+            bebidas: 'drinks',
+            postres: 'dessert',
+            antojos: 'snacks',
+            minutas: 'snacks',
+            entradas: 'snacks',
+            'platos-principales': 'curry',
+            biryani: 'biriyani'
+        };
 
-            const remoteSpecialItems = data.filter(item => item.is_special).map(item => ({
-                id: item.id,
-                name: item.name,
-                category: item.category,
-                price: item.price,
-                originalPrice: item.original_price,
-                image: item.image_url || `assets/images/food/${item.name.toLowerCase().replace(/ /g, '-')}.jpg`,
-                desc: item.description
-            }));
-
-            if (remoteMenuItems.length > 0) menuItems = remoteMenuItems;
-            if (remoteSpecialItems.length > 0) specialItems = remoteSpecialItems;
-
-            renderSpecials();
-            renderMenu(state.selectedCategory, state.searchQuery);
-        }
-    } catch (err) {
-        console.error('Error fetching menu items:', err.message);
-        showToast('Using local menu data (Offline mode)', 'info');
+        menuItems = (data || []).map(plato => ({
+            id: plato.id,
+            name: String(plato.nombre || ''),
+            price: Number(plato.precio) || 0,
+            category: categoryMap[plato.categoria] || plato.categoria || 'all',
+            categoryLabel: plato.categoria || '',
+            image: typeof plato.imagen_url === 'string' ? plato.imagen_url : '',
+            desc: '',
+            popular: false
+        })).filter(item => item.name && Number.isFinite(item.price));
+    } catch (error) {
+        console.error('No se pudieron cargar los platos desde Supabase:', error);
+        menuItems = [];
     }
+
+    renderMenu(state.selectedCategory, state.searchQuery);
 }
 
 document.addEventListener('DOMContentLoaded', init);
@@ -425,14 +422,23 @@ function renderMenu(category = 'all', searchQuery = '') {
         const query = searchQuery.toLowerCase();
         filtered = filtered.filter(item =>
             item.name.toLowerCase().includes(query) ||
-            item.desc.toLowerCase().includes(query) ||
-            item.category.toLowerCase().includes(query)
+            (item.desc || '').toLowerCase().includes(query) ||
+            (item.categoryLabel || item.category || '').toLowerCase().includes(query)
         );
     }
 
     if (filtered.length === 0) {
         DOM.noResults.classList.remove('hidden');
         DOM.menuGrid.innerHTML = '';
+        const title = DOM.noResults.querySelector('.no-results-title');
+        const subtitle = DOM.noResults.querySelector('.no-results-subtitle');
+        if (menuItems.length === 0) {
+            if (title) title.textContent = 'No hay platos disponibles por el momento';
+            if (subtitle) subtitle.textContent = '';
+        } else {
+            if (title) title.textContent = 'No encontramos platillos';
+            if (subtitle) subtitle.textContent = 'Prueba con otra búsqueda';
+        }
         return;
     } else {
         DOM.noResults.classList.add('hidden');
@@ -452,6 +458,10 @@ function createMenuItemHTML(item, index) {
     const ratingData = state.itemRatingsData[item.id];
     const avgRating = ratingData ? ratingData.avg.toFixed(1) : '0.0';
     const ratingCount = ratingData ? ratingData.count : 0;
+    const safeName = escapeHTML(item.name);
+    const safeImage = escapeHTML(item.image || '');
+    const safeDescription = escapeHTML(item.desc || '');
+    const safeId = escapeHTML(item.id);
 
     const ratingHTML = `
         <div class="food-card-rating">
@@ -462,22 +472,22 @@ function createMenuItemHTML(item, index) {
     `;
 
     return `
-        <article class="food-card scroll-reveal" data-id="${item.id}" role="listitem" style="transition-delay: ${delay}s">
+        <article class="food-card scroll-reveal" data-id="${safeId}" role="listitem" style="transition-delay: ${delay}s">
             <div class="food-card-image">
-                <img src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.src='https://placehold.co/400x400/1a1a1a/ffffff?text=${encodeURIComponent(item.name)}'">
+                <img src="${safeImage}" alt="${safeName}" loading="lazy" onerror="this.src='https://placehold.co/400x400/1a1a1a/ffffff?text=${encodeURIComponent(item.name)}'">
                 <div class="food-card-badges">
-                    ${item.popular ? '<span class="food-badge popular">Popular</span>' : ''}
+            ${item.popular ? '<span class="food-badge popular">Favorito</span>' : ''}
                 </div>
                 ${ratingHTML}
             </div>
             <div class="food-card-content">
                 <div class="food-card-header">
-                    <h3 class="food-card-title">${item.name}</h3>
+                    <h3 class="food-card-title">${safeName}</h3>
                 </div>
-                <p class="food-card-description">${item.desc}</p>
+                <p class="food-card-description">${safeDescription}</p>
                 <div class="food-card-footer">
                     <span class="food-card-price gradient-text">${CONFIG.currency}${item.price}</span>
-                    <button class="btn btn-primary btn-add btn-menu-item" data-id="${item.id}" aria-label="Add ${item.name} to cart">
+                    <button class="btn btn-primary btn-add btn-menu-item" data-id="${safeId}" aria-label="Agregar ${safeName} al carrito">
                         Add +
                     </button>
                 </div>
@@ -502,8 +512,8 @@ function renderSpecials() {
     specialItems.forEach((item, index) => {
         const isActive = index === 0 ? 'active' : '';
         const badgeHTML = item.price < (item.originalPrice || item.price)
-            ? `<div class="special-badge discount">SALE</div>`
-            : `<div class="special-badge chef">CHEF'S PICK</div>`;
+            ? `<div class="special-badge discount">OFERTA</div>`
+            : `<div class="special-badge chef">RECOMENDACIÓN DEL CHEF</div>`;
         const originalPriceHTML = item.originalPrice
             ? `<span class="price-original"><span class="currency">${CONFIG.currencySymbol}</span>${item.originalPrice}</span>`
             : '';
@@ -513,7 +523,7 @@ function renderSpecials() {
                 <div class="slide-bg" style="background-image: url('${item.image}');"></div>
                 <div class="slide-overlay"></div>
                 <div class="slide-content">
-                    <span class="slide-eyebrow">Today's Special</span>
+                    <span class="slide-eyebrow">Especial del día</span>
                     ${badgeHTML}
                     <h3 class="slide-title">${item.name}</h3>
                     <p class="slide-description">${item.desc || item.description || ''}</p>
@@ -527,12 +537,12 @@ function renderSpecials() {
                             <span class="price-current"><span class="currency">${CONFIG.currencySymbol}</span>${item.price}</span>
                             ${originalPriceHTML}
                         </div>
-                        <button class="btn btn-primary btn-add btn-special" data-id="${item.id}">Add +</button>
+                        <button class="btn btn-primary btn-add btn-special" data-id="${item.id}">Agregar +</button>
                     </div>
                 </div>
             </div>
         `;
-        dotsHTML += `<button class="slider-dot ${isActive}" aria-label="Go to slide ${index + 1}"></button>`;
+        dotsHTML += `<button class="slider-dot ${isActive}" aria-label="Ir a la diapositiva ${index + 1}"></button>`;
     });
 
     dotsHTML += '</div>';
@@ -674,11 +684,11 @@ function addToCart(id) {
 
         updateCart();
         saveToStorage();
-        showToast(`${item.name} added to cart! 🛒`);
+        showToast(`¡${item.name} se agregó al carrito! 🛒`);
         animateCartIcon();
     } catch (error) {
         console.error('Error in addToCart:', error);
-        showToast('Error adding to cart', 'error');
+        showToast('No se pudo agregar al carrito', 'error');
     }
 }
 
@@ -696,7 +706,7 @@ function addToCartWithQty(id, qty) {
 
     updateCart();
     saveToStorage();
-    showToast(`${qty}x ${item.name} added to cart! 🛒`);
+    showToast(`¡Se agregaron ${qty} de ${item.name} al carrito! 🛒`);
     animateCartIcon();
 }
 
@@ -760,12 +770,12 @@ function renderCartItems() {
             </div>
             <div class="cart-item-details">
                 <div class="cart-item-name">${item.name}</div>
-                <div class="cart-item-price">${CONFIG.currency}${item.price} each</div>
+                <div class="cart-item-price">${CONFIG.currency}${item.price} c/u</div>
             </div>
             <div class="cart-item-quantity">
-                <button class="qty-btn" onclick="updateCartItemQty('${item.id}', -1)" aria-label="Decrease quantity">−</button>
+                <button class="qty-btn" onclick="updateCartItemQty('${item.id}', -1)" aria-label="Reducir cantidad">−</button>
                 <span class="qty-value">${item.qty}</span>
-                <button class="qty-btn" onclick="updateCartItemQty('${item.id}', 1)" aria-label="Increase quantity">+</button>
+                <button class="qty-btn" onclick="updateCartItemQty('${item.id}', 1)" aria-label="Aumentar cantidad">+</button>
             </div>
         </div>
     `).join('');
@@ -804,66 +814,62 @@ function closeCart() {
 
 async function placeOrder() {
     if (state.cart.length === 0) {
-        showToast('Your cart is empty!', 'warning');
+        showToast('¡Tu carrito está vacío!', 'warning');
         return;
     }
 
-    const orderNumber = generateOrderNumber();
+    const carrito = [...state.cart];
+    const subtotal = carrito.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const vat = Math.round(subtotal * CONFIG.vatRate);
+    const totalCarrito = subtotal + vat;
+    if (DOM.placeOrderBtn) DOM.placeOrderBtn.disabled = true;
 
-    const order = {
-        id: orderNumber,
-        table: state.currentTable,
-        items: [...state.cart],
-        subtotal: state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
-        vat: Math.round(state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0) * CONFIG.vatRate),
-        total: 0,
-        instructions: DOM.instructions?.value || '',
-        status: 'received',
-        timestamp: new Date().toISOString()
-    };
-    order.total = order.subtotal + order.vat;
+    try {
+        const orderNumber = generateOrderNumber();
+        const { error } = await kitchenSupabaseClient
+            .from('orders')
+            .insert([{
+                order_number: String(orderNumber),
+                table_number: Number(state.currentTable || 1),
+                items: carrito,
+                subtotal,
+                vat,
+                total: totalCarrito,
+                instructions: DOM.instructions?.value || '',
+                status: 'received'
+            }]);
 
-    // Save to Supabase if configured
-    if (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-        try {
-            // Stringify items if your DB expects a string/text column
-            const { data, error } = await supabaseClient
-                .from('orders')
-                .insert([{
-                    order_number: order.id,
-                    table_number: parseInt(order.table),
-                    items: order.items, // Supabase usually handles JS arrays for jsonb
-                    subtotal: order.subtotal,
-                    vat: order.vat,
-                    total: order.total,
-                    instructions: order.instructions,
-                    status: order.status
-                }])
-                .select(); // Get back the record to confirm
+        if (error) throw error;
 
-            if (error) throw error;
-        } catch (err) {
-            console.error('Error saving order to Supabase:', err.message);
-            showToast('Order saved locally (Offline mode)', 'info');
-        }
-    }
+        const order = {
+            id: orderNumber,
+            table: state.currentTable,
+            items: carrito,
+            subtotal,
+            vat,
+            total: totalCarrito,
+            instructions: DOM.instructions?.value || '',
+            status: 'received',
+            timestamp: new Date().toISOString()
+        };
 
-    state.orders.unshift(order);
-    saveToStorage();
-
-    state.cart = [];
-    updateCart();
-    if (DOM.instructions) DOM.instructions.value = '';
-
-    updateOrderBadges();
-    closeCart();
-    showSuccessModal(orderNumber);
-
-    // Subscribe to updates regardless of Supabase success (uses local ID which matches order_number)
-    if (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+        state.orders.unshift(order);
+        // The page was initialized before this order existed, so it was not
+        // included in syncActiveOrders(). Subscribe now to kitchen status changes.
         subscribeToOrderUpdates(orderNumber);
-    } else {
-        simulateOrderProgress(orderNumber);
+        saveToStorage();
+        state.cart = [];
+        updateCart();
+        if (DOM.instructions) DOM.instructions.value = '';
+        updateOrderBadges();
+        closeCart();
+        showSuccessModal(orderNumber);
+        alert('¡Pedido enviado con éxito! Gracias por tu compra.');
+    } catch (error) {
+        console.error('Error al enviar el pedido a Supabase:', error);
+        alert('No pudimos enviar tu pedido. Revisa tu conexión e inténtalo nuevamente.');
+    } finally {
+        if (DOM.placeOrderBtn) DOM.placeOrderBtn.disabled = false;
     }
 }
 
@@ -876,17 +882,17 @@ function simulateOrderProgress(orderNumber) {
 
     setTimeout(() => {
         updateOrderStatus(orderNumber, 'preparing');
-        showToast('👨‍🍳 Your order is being prepared!');
+        showToast('👨‍🍳 ¡Estamos preparando tu pedido!');
     }, preparing);
 
     setTimeout(() => {
         updateOrderStatus(orderNumber, 'ready');
-        showToast('🍽️ Your order is ready!');
+        showToast('🍽️ ¡Tu pedido está listo!');
     }, ready);
 
     setTimeout(() => {
         updateOrderStatus(orderNumber, 'served');
-        showToast('✅ Order served. Enjoy your meal!');
+        showToast('✅ Pedido entregado. ¡Buen provecho!');
         updateOrderBadges();
         // Auto-trigger rating modal for served order
         setTimeout(() => showRatingModal(orderNumber), 5000);
@@ -962,10 +968,10 @@ function renderOrders() {
 
     DOM.ordersList.innerHTML = state.orders.map(order => {
         const statusConfig = {
-            'received': { label: '<i data-lucide="file-text"></i> Received', class: 'active' },
-            'preparing': { label: '<i data-lucide="chef-hat"></i> Preparing', class: 'active' },
-            'ready': { label: '<i data-lucide="utensils"></i> Ready', class: 'active' },
-            'served': { label: '<i data-lucide="check-circle"></i> Served', class: 'completed' }
+            'received': { label: '<i data-lucide="file-text"></i> Recibido', class: 'active' },
+            'preparing': { label: '<i data-lucide="chef-hat"></i> En preparación', class: 'active' },
+            'ready': { label: '<i data-lucide="utensils"></i> Listo', class: 'active' },
+            'served': { label: '<i data-lucide="check-circle"></i> Entregado', class: 'completed' }
         };
 
         const status = statusConfig[order.status];
@@ -977,7 +983,7 @@ function renderOrders() {
             <div class="order-item">
                 <div class="order-header">
                     <div>
-                        <div class="order-id">Order #${order.id}</div>
+                <div class="order-id">Pedido n.º ${order.id}</div>
                         <div class="order-time">${formatDate(order.timestamp)}</div>
                     </div>
                     <span class="order-status ${status.class}">${status.label}</span>
@@ -999,11 +1005,11 @@ function renderOrders() {
                     `}).join('')}
                 </div>
                 <div class="order-total">
-                    <span>Total (incl. VAT)</span>
+                    <span>Total (IVA incluido)</span>
                     <span class="total-value gradient-text">${CONFIG.currency}${order.total}</span>
                 </div>
-                ${isServed && !isRated ? `<button class="rate-order-btn" onclick="showRatingModal('${order.id}')"><i data-lucide="star"></i> Rate Items</button>` : ''}
-                ${isRated ? '<span class="rated-badge"><i data-lucide="check-circle"></i> Rated</span>' : ''}
+                ${isServed && !isRated ? `<button class="rate-order-btn" onclick="showRatingModal('${order.id}')"><i data-lucide="star"></i> Calificar platillos</button>` : ''}
+                ${isRated ? '<span class="rated-badge"><i data-lucide="check-circle"></i> Calificado</span>' : ''}
             </div>
         `;
     }).join('');
@@ -1071,11 +1077,11 @@ function renderTrackOrders() {
                  data-last-status="${order.status}">
                 <div class="track-order-header">
                     <div>
-                        <div class="track-order-id">Order #${order.id}</div>
+                        <div class="track-order-id">Pedido n.º ${order.id}</div>
                         <div class="track-order-time">${formatTime(order.timestamp)}</div>
                     </div>
                     ${isServed ? `
-                        <span class="track-status-badge completed"><i data-lucide="check-circle"></i> Served</span>
+                        <span class="track-status-badge completed"><i data-lucide="check-circle"></i> Entregado</span>
                     ` : `
                         <span class="track-status-badge">
                             <span class="live-dot"></span>
@@ -1096,7 +1102,7 @@ function renderTrackOrders() {
                                      data-current-step="${startStep}"></div>
                             </div>
                             
-                            ${['Received', 'Preparing', 'Ready', 'Served'].map((label, idx) => `
+                            ${['Recibido', 'En preparación', 'Listo', 'Entregado'].map((label, idx) => `
                                 <div class="track-step-${order.id}-${idx} status-step">
                                     <div class="step-icon" style="${getStepStyle(idx)}">
                                         <i data-lucide="${['file-text', 'chef-hat', 'utensils', 'check-circle'][idx]}"></i>
@@ -1111,7 +1117,7 @@ function renderTrackOrders() {
 
                 ${isServed ? `
                     <div class="served-confirmation">
-                        <p>This order was served. Enjoy your meal! <i data-lucide="heart" class="icon-heart inline-icon"></i></p>
+                        <p>Tu pedido fue entregado. ¡Buen provecho! <i data-lucide="heart" class="icon-heart inline-icon"></i></p>
                     </div>
                 ` : ''}
 
@@ -1135,7 +1141,7 @@ function renderTrackOrders() {
                     </div>
                     ${!isServed ? `
                         <div class="track-eta">
-                            <span class="track-eta-label">Estimated</span>
+                        <span class="track-eta-label">Tiempo estimado</span>
                             <span class="track-eta-value">${CONFIG.estimatedTime}</span>
                         </div>
                     ` : ''}
@@ -1365,7 +1371,7 @@ function openItemModal(id) {
     // Display average rating and reviews
     const ratingData = state.itemRatingsData[item.id];
     if (DOM.itemModalAvgRating) DOM.itemModalAvgRating.textContent = ratingData ? ratingData.avg.toFixed(1) : '0.0';
-    if (DOM.itemModalRatingCount) DOM.itemModalRatingCount.textContent = ratingData ? `(${ratingData.count} reviews)` : '(0 reviews)';
+    if (DOM.itemModalRatingCount) DOM.itemModalRatingCount.textContent = ratingData ? `(${ratingData.count} reseñas)` : '(0 reseñas)';
 
     // Render reviews
     if (DOM.itemReviewsList && DOM.noReviews) {
@@ -1441,12 +1447,12 @@ function addSelectedItemToCart() {
 
 async function callWaiter() {
     if (!state.currentTable) {
-        showToast('Please select a table first!', 'error');
+        showToast('Primero selecciona una mesa', 'error');
         return;
     }
 
     try {
-        const { error } = await supabaseClient
+        const { error } = await kitchenSupabaseClient
             .from('waiter_calls')
             .insert([{
                 table_number: state.currentTable,
@@ -1455,10 +1461,10 @@ async function callWaiter() {
 
         if (error) throw error;
 
-        showToast('Waiter has been notified.', 'success');
+        showToast('Avisamos al mesero.', 'success');
     } catch (err) {
         console.error('Error calling waiter:', err.message);
-        showToast('Failed to notify waiter. Please try again.', 'error');
+        showToast('No se pudo avisar al mesero. Inténtalo de nuevo.', 'error');
     }
 }
 function scrollToTop() {
@@ -1749,7 +1755,7 @@ function saveToStorage() {
         localStorage.setItem(`rannaghor_table_${state.currentTable}`, JSON.stringify(data));
     } catch (e) {
         // Issue #2: Improved error handling with user-friendly toast
-        showToast('Unable to save data. Please check your browser settings.', 'warning');
+        showToast('No se pudieron guardar los datos. Revisa la configuración de tu navegador.', 'warning');
     }
 }
 
@@ -1830,7 +1836,7 @@ function subscribeToOrderUpdates(orderNumber) {
     // Ensure we don't have multiple subscriptions for the same order
     const channelName = `cust-order-${orderNumber}`;
 
-    const channel = supabaseClient
+    const channel = kitchenSupabaseClient
         .channel(channelName)
         .on('postgres_changes', {
             event: 'UPDATE',
@@ -1843,7 +1849,9 @@ function subscribeToOrderUpdates(orderNumber) {
             // Show toast for transparency
             const statusEmojis = { 'preparing': '👨‍🍳', 'ready': '🍽️', 'served': '✅' };
             const emoji = statusEmojis[payload.new.status] || '🔔';
-            showToast(`${emoji} Order #${orderNumber} status: ${payload.new.status}`);
+            const statuses = { received: 'recibido', preparing: 'en preparación', ready: 'listo', served: 'entregado' };
+            const status = statuses[payload.new.status] || payload.new.status;
+            showToast(`${emoji} Estado del pedido n.º ${orderNumber}: ${status}`);
 
             // Auto-trigger rating when order is served
             if (payload.new.status === 'served') {
@@ -1872,7 +1880,7 @@ function showRatingModal(orderNumber) {
 
     // Don't show if already rated
     if (state.ratings[orderNumber] && Object.keys(state.ratings[orderNumber]).length > 0) {
-        showToast('You already rated this order!', 'info');
+        showToast('¡Ya calificaste este pedido!', 'info');
         return;
     }
 
@@ -1891,12 +1899,12 @@ function showRatingModal(orderNumber) {
                      onerror="this.src='https://placehold.co/112x112/1a1a1a/ffffff?text=${encodeURIComponent(item.name)}'">
                 <div class="rating-item-info">
                     <div class="rating-item-name">${item.name}</div>
-                    <div class="rating-item-qty">Qty: ${item.qty}</div>
+            <div class="rating-item-qty">Cantidad: ${item.qty}</div>
                     <div class="star-selector" data-item-id="${item.id}">
-                        ${[1, 2, 3, 4, 5].map(s => `<button class="star-btn" data-star="${s}" aria-label="${s} star"><i data-lucide="star"></i></button>`).join('')}
+                        ${[1, 2, 3, 4, 5].map(s => `<button class="star-btn" data-star="${s}" aria-label="${s} estrellas"><i data-lucide="star"></i></button>`).join('')}
                     </div>
                     <input type="text" class="rating-feedback-input" data-item-id="${item.id}"
-                           placeholder="Any feedback? (optional)" maxlength="120">
+                           placeholder="¿Algún comentario? (opcional)" maxlength="120">
                 </div>
             </div>
         `).join('');
@@ -1960,7 +1968,7 @@ function handleSubmitRatings() {
     });
 
     if (!hasAnyRating) {
-        showToast('Please rate at least one item!', 'warning');
+        showToast('¡Califica al menos un platillo!', 'warning');
         return;
     }
 
@@ -2008,7 +2016,7 @@ function handleSubmitRatings() {
     // Hide the rating modal immediately
     hideModal(DOM.ratingModal);
 
-    showToast('Thank you for your feedback! ⭐');
+    showToast('¡Gracias por tus comentarios! ⭐');
 
     // Refresh order history if open
     if (DOM.ordersModal && !DOM.ordersModal.classList.contains('hidden')) {
@@ -2110,8 +2118,8 @@ function formatReviewDate(isoString) {
     const diffMs = now - date;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }

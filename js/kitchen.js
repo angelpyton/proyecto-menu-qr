@@ -8,6 +8,9 @@ let orders = [];
 let waiterCalls = [];
 let searchQuery = '';
 let activeMobileColumn = 'received';
+// Keep optimistic kitchen actions visible if a poll that started earlier
+// returns stale order data after the status was changed.
+const orderStatusOverrides = new Map();
 
 // DOM Elements
 const DOM = {
@@ -51,6 +54,7 @@ async function init() {
     // Setup Realtime connection (Instant updates)
     setupRealtime();
 
+    /*
     // Background Sync Loop: Ensures data stays current even if Realtime is throttled/dropped
     // Runs every 5 seconds as a robust fallback for cross-device updates
     setInterval(async () => {
@@ -60,6 +64,7 @@ async function init() {
         ]);
         renderDashboard();
     }, 5000);
+    */
 
     // Initial render
     renderDashboard();
@@ -183,10 +188,17 @@ async function fetchActiveOrders() {
         const uniqueOrders = [];
         const seenIds = new Set();
         
-        allOrders.forEach(o => {
-            if (!seenIds.has(o.id)) {
-                uniqueOrders.push(o);
-                seenIds.add(o.id);
+        allOrders.forEach(order => {
+            if (!seenIds.has(order.id)) {
+                const id = String(order.id);
+                const statusOverride = orderStatusOverrides.get(id);
+                if (statusOverride && order.status === statusOverride) {
+                    orderStatusOverrides.delete(id);
+                }
+                uniqueOrders.push(statusOverride && order.status !== statusOverride
+                    ? { ...order, status: statusOverride }
+                    : order);
+                seenIds.add(order.id);
             }
         });
 
@@ -343,6 +355,7 @@ function handleOrderUpdate(payload) {
             playNotification();
         }
     } else if (eventType === 'UPDATE') {
+        orderStatusOverrides.set(String(newRecord.id), newRecord.status);
         const index = orders.findIndex(o => o.id === newRecord.id);
         if (index !== -1) orders[index] = newRecord;
         else orders.unshift(newRecord);
@@ -485,7 +498,13 @@ function createOrderCard(order) {
                     </div>
                 `).join('')}
             </div>
-            ${order.instructions ? `<div class="card-instructions">"${order.instructions}"</div>` : ''}
+            ${order.instructions ? `<div class="card-instructions">"${escapeHTML(order.instructions)}"</div>` : ''}
+            ${order.status === 'served' ? `
+                <div class="card-total">
+                    <span>Total</span>
+                    <strong>Gs. ${Number(order.total || 0).toLocaleString('es-PY')}</strong>
+                </div>
+            ` : ''}
             <div class="card-footer">
                 <span class="time-elapsed ${timeInfo.textClass}">
                     <span class="time-icon"><i data-lucide="clock"></i></span> ${timeInfo.label}
@@ -496,6 +515,16 @@ function createOrderCard(order) {
             </div>
         </article>
     `;
+}
+
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[character]);
 }
 
 /**
@@ -529,9 +558,10 @@ function getTimeInfo(timestamp) {
  * Update order status
  */
 async function updateStatus(id, newStatus) {
+    orderStatusOverrides.set(String(id), newStatus);
     try {
         // Optimistic UI
-        const o = orders.find(o => o.id === id);
+        const o = orders.find(o => String(o.id) === String(id));
         if (o) o.status = newStatus;
         renderDashboard();
 
@@ -543,6 +573,7 @@ async function updateStatus(id, newStatus) {
         if (error) throw error;
     } catch (err) {
         console.error('Update failed:', err);
+        orderStatusOverrides.delete(String(id));
         await fetchActiveOrders();
     }
 }
