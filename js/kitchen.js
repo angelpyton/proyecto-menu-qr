@@ -55,14 +55,14 @@ async function init() {
     setupRealtime();
 
     // Background Sync Loop: Ensures data stays current even if Realtime is throttled/dropped
-    // Runs every 5 seconds as a robust fallback for cross-device updates
+    // Runs every 2 seconds as a fallback if Realtime is delayed or unavailable
     setInterval(async () => {
         await Promise.all([
             fetchActiveOrders(),
             fetchWaiterCalls()
         ]);
         renderDashboard();
-    }, 5000);
+    }, 2000);
 
     // Initial render
     renderDashboard();
@@ -161,22 +161,25 @@ async function fetchActiveOrders() {
         
         // 1. Fetch all active orders (received, preparing, ready)
         // This ensures the kitchen never "loses" an order that needs action
-        const { data: activeData, error: activeError } = await supabaseClient
-            .from('orders')
-            .select('*')
-            .in('status', ['received', 'preparing', 'ready'])
-            .order('created_at', { ascending: true }); // Oldest first for active
+        // Fetch active orders and recent served history concurrently so the
+        // second query does not add its latency to the first one.
+        const [activeResult, servedResult] = await Promise.all([
+            supabaseClient
+                .from('orders')
+                .select('*')
+                .in('status', ['received', 'preparing', 'ready'])
+                .order('created_at', { ascending: true }),
+            supabaseClient
+                .from('orders')
+                .select('*')
+                .eq('status', 'served')
+                .order('created_at', { ascending: false })
+                .limit(15)
+        ]);
 
+        const { data: activeData, error: activeError } = activeResult;
+        const { data: servedData, error: servedError } = servedResult;
         if (activeError) throw activeError;
-
-        // 2. Fetch recent history (served)
-        const { data: servedData, error: servedError } = await supabaseClient
-            .from('orders')
-            .select('*')
-            .eq('status', 'served')
-            .order('created_at', { ascending: false })
-            .limit(15);
-
         if (servedError) throw servedError;
 
         // Combine and update state
