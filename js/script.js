@@ -141,6 +141,7 @@ const state = {
     html5QrCode: null, // QR Scanner instance
     ratingOrderId: null // Currently rating order
 };
+let storageWarningShown = false;
 
 // ==========================================
 // 3. DOM ELEMENTS
@@ -819,6 +820,7 @@ async function placeOrder() {
     }
 
     const carrito = [...state.cart];
+    const kitchenItems = carrito.map(removeInlineImageData);
     const subtotal = carrito.reduce((sum, item) => sum + (item.price * item.qty), 0);
     const vat = Math.round(subtotal * CONFIG.vatRate);
     const totalCarrito = subtotal + vat;
@@ -831,7 +833,7 @@ async function placeOrder() {
             .insert([{
                 order_number: String(orderNumber),
                 table_number: Number(state.currentTable || 1),
-                items: carrito,
+                items: kitchenItems,
                 subtotal,
                 vat,
                 total: totalCarrito,
@@ -1746,17 +1748,28 @@ function saveToStorage() {
     if (!state.currentTable) return;
 
     const data = {
-        cart: state.cart,
-        orders: state.orders,
+        cart: state.cart.map(removeInlineImageData),
+        orders: state.orders.map(order => ({
+            ...order,
+            items: Array.isArray(order.items) ? order.items.map(removeInlineImageData) : order.items
+        })),
         ratings: state.ratings
     };
 
     try {
         localStorage.setItem(`rannaghor_table_${state.currentTable}`, JSON.stringify(data));
     } catch (e) {
-        // Issue #2: Improved error handling with user-friendly toast
-        showToast('No se pudieron guardar los datos. Revisa la configuración de tu navegador.', 'warning');
+        console.warn('No se pudo guardar una copia local de los datos:', e);
+        if (!storageWarningShown) {
+            storageWarningShown = true;
+            showToast('No se pudo guardar una copia local en este dispositivo.', 'warning');
+        }
     }
+}
+
+function removeInlineImageData(item) {
+    if (!item || typeof item.image !== 'string' || !item.image.startsWith('data:')) return item;
+    return { ...item, image: 'assets/images/logo.png' };
 }
 
 function loadFromStorage() {
