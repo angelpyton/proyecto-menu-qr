@@ -14,6 +14,41 @@ let backgroundSyncInProgress = false;
 // Keep optimistic kitchen actions visible if a poll that started earlier
 // returns stale order data after the status was changed.
 const orderStatusOverrides = new Map();
+const DB_ORDER_STATUS = {
+    received: 'Pendiente',
+    preparing: 'En preparación',
+    ready: 'Listo',
+    served: 'Entregado'
+};
+
+function toKitchenStatus(value) {
+    const normalized = String(value || '').trim().toLocaleLowerCase('es');
+    const statusMap = {
+        'pendiente': 'received', 'received': 'received',
+        'en preparación': 'preparing', 'preparando': 'preparing', 'preparing': 'preparing',
+        'listo': 'ready', 'ready': 'ready',
+        'entregado': 'served', 'servido': 'served', 'served': 'served'
+    };
+    return statusMap[normalized] || 'received';
+}
+
+function normalizePedido(row) {
+    let details = row.detalles;
+    if (typeof details === 'string') {
+        try { details = JSON.parse(details); } catch (_) { details = []; }
+    }
+    const items = Array.isArray(details) ? details : (Array.isArray(details?.items) ? details.items : []);
+    return {
+        id: row.id,
+        order_number: row.id,
+        table_number: row.mesa,
+        items,
+        instructions: Array.isArray(details) ? '' : (details?.instructions || ''),
+        total: row.total,
+        status: toKitchenStatus(row.estado),
+        created_at: row.creado_en
+    };
+}
 
 // DOM Elements
 const DOM = {
@@ -57,8 +92,8 @@ async function init() {
         fetchWaiterCalls()
     ]);
 
-    // Background Sync Loop: Ensures data stays current even if Realtime is throttled/dropped
-    // Runs every 2 seconds as a fallback if Realtime is delayed or unavailable
+    // Realtime is the primary path; this low-frequency poll recovers after
+    // dropped connections without hammering Supabase every few seconds.
     setInterval(async () => {
         if (backgroundSyncInProgress) return;
         backgroundSyncInProgress = true;
@@ -70,7 +105,7 @@ async function init() {
         } finally {
             backgroundSyncInProgress = false;
         }
-    }, 2000);
+    }, 15000);
 
     // Initial render
     renderDashboard();
@@ -83,6 +118,12 @@ async function init() {
  * Setup Event Listeners
  */
 function setupEventListeners() {
+    document.addEventListener('click', event => {
+        const action = event.target.closest('[data-order-action][data-order-id]');
+        if (action) updateStatus(action.dataset.orderId, action.dataset.orderAction);
+        const resolve = event.target.closest('[data-resolve-call]');
+        if (resolve) resolveServiceAlert(resolve.dataset.resolveCall);
+    });
     // Search
     if (DOM.orderSearch) {
         DOM.orderSearch.addEventListener('input', (e) => {
@@ -174,15 +215,15 @@ async function fetchActiveOrders() {
         // second query does not add its latency to the first one.
         const [activeResult, servedResult] = await Promise.all([
             supabaseClient
-                .from('orders')
+                .from('pedidos')
                 .select('*')
-                .in('status', ['received', 'preparing', 'ready'])
-                .order('created_at', { ascending: true }),
+                .in('estado', ['Pendiente', 'En preparación', 'Listo'])
+                .order('creado_en', { ascending: true }),
             supabaseClient
-                .from('orders')
+                .from('pedidos')
                 .select('*')
-                .eq('status', 'served')
-                .order('created_at', { ascending: false })
+                .eq('estado', 'Entregado')
+                .order('creado_en', { ascending: false })
                 .limit(15)
         ]);
 
@@ -198,10 +239,10 @@ async function fetchActiveOrders() {
         // still displaying fresh results from the successful query.
         const activeOrders = activeError
             ? orders.filter(order => ['received', 'preparing', 'ready'].includes(order.status))
-            : activeData || [];
+            : (activeData || []).map(normalizePedido);
         const servedOrders = servedError
             ? orders.filter(order => order.status === 'served')
-            : servedData || [];
+            : (servedData || []).map(normalizePedido);
         const allOrders = [...activeOrders, ...servedOrders];
         
         // Use a Set to ensure uniqueness if any duplicates occur during merge
@@ -269,7 +310,7 @@ function setupRealtime() {
         .on('postgres_changes', {
             event: '*',
             schema: 'public',
-            table: 'orders'
+            table: 'pedidos'
         }, (payload) => {
             handleOrderUpdate(payload);
         })
@@ -334,10 +375,10 @@ function renderServiceAlerts() {
 
     DOM.serviceAlerts.classList.remove('hidden');
     DOM.serviceAlerts.innerHTML = waiterCalls.map(call => `
-        <div class="service-alert" data-call-id="${call.id}">
+        <div class="service-alert" data-call-id="${escapeHTML(call.id)}">
             <span class="alert-icon"><i data-lucide="bell"></i></span>
-            <span class="alert-text">Table ${call.table_number} is calling!</span>
-            <button class="btn-resolve-alert" onclick="resolveServiceAlert('${call.id}')">Handled</button>
+            <span class="alert-text">Table ${escapeHTML(call.table_number)} is calling!</span>
+            <button class="btn-resolve-alert" data-resolve-call="${escapeHTML(call.id)}">Handled</button>
         </div>
     `).join('');
     
@@ -375,15 +416,17 @@ function handleOrderUpdate(payload) {
     latestOrdersFetchId++;
 
     if (eventType === 'INSERT') {
-        if (!orders.find(o => o.id === newRecord.id)) {
-            orders.unshift(newRecord);
+        const order = normalizePedido(newRecord);
+        if (!orders.find(o => String(o.id) === String(order.id))) {
+            orders.unshift(order);
             playNotification();
         }
     } else if (eventType === 'UPDATE') {
-        orderStatusOverrides.set(String(newRecord.id), newRecord.status);
-        const index = orders.findIndex(o => o.id === newRecord.id);
-        if (index !== -1) orders[index] = newRecord;
-        else orders.unshift(newRecord);
+        const order = normalizePedido(newRecord);
+        orderStatusOverrides.set(String(order.id), order.status);
+        const index = orders.findIndex(o => String(o.id) === String(order.id));
+        if (index !== -1) orders[index] = order;
+        else orders.unshift(order);
     } else if (eventType === 'DELETE') {
         orders = orders.filter(o => o.id !== oldRecord.id);
     }
@@ -485,7 +528,12 @@ function fixImagePath(path) {
     if (path.startsWith('assets/')) {
         return '../' + path;
     }
-    return path;
+    try {
+        const url = new URL(path, window.location.href);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+    } catch (_) {
+        return '';
+    }
 }
 
 /**
@@ -493,33 +541,37 @@ function fixImagePath(path) {
  */
 function createOrderCard(order) {
     const timeInfo = getTimeInfo(order.created_at);
-    const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+    let items = order.items;
+    if (typeof items === 'string') {
+        try { items = JSON.parse(items); } catch (_) { items = []; }
+    }
+    if (!Array.isArray(items)) items = [];
 
     let actionBtn = '';
     if (order.status === 'received') {
-        actionBtn = `<button class="btn-kitchen btn-next" onclick="updateStatus('${order.id}', 'preparing')">Start Cooking</button>`;
+        actionBtn = `<button class="btn-kitchen btn-next" data-order-action="preparing" data-order-id="${escapeHTML(order.id)}">Start Cooking</button>`;
     } else if (order.status === 'preparing') {
-        actionBtn = `<button class="btn-kitchen btn-finish" onclick="updateStatus('${order.id}', 'ready')">Ready</button>`;
+        actionBtn = `<button class="btn-kitchen btn-finish" data-order-action="ready" data-order-id="${escapeHTML(order.id)}">Ready</button>`;
     } else if (order.status === 'ready') {
-        actionBtn = `<button class="btn-kitchen btn-serve" onclick="updateStatus('${order.id}', 'served')">Serve</button>`;
+        actionBtn = `<button class="btn-kitchen btn-serve" data-order-action="served" data-order-id="${escapeHTML(order.id)}">Serve</button>`;
     } else {
         actionBtn = `<span class="served-badge">Served <i data-lucide="check-circle"></i></span>`;
     }
 
     return `
-        <article class="kitchen-card ${timeInfo.class}" data-order-id="${order.id}">
+        <article class="kitchen-card ${timeInfo.class}" data-order-id="${escapeHTML(order.id)}">
             <div class="card-header">
-                <span class="order-id">#${order.order_number}</span>
-                <span class="table-badge">Table ${order.table_number}</span>
+                <span class="order-id">#${escapeHTML(order.order_number)}</span>
+                <span class="table-badge">Table ${escapeHTML(order.table_number)}</span>
             </div>
             <div class="card-items">
                 ${items.map(item => `
                     <div class="card-item-row">
                         <div class="item-name-wrapper">
-                            ${item.image ? `<img src="${fixImagePath(item.image)}" alt="${item.name}" class="kitchen-item-thumb">` : `<span class="item-emoji">${item.emoji || '🍽️'}</span>`}
-                            <span>${item.name}</span>
+                            ${item.image ? `<img src="${escapeHTML(fixImagePath(item.image))}" alt="${escapeHTML(item.name)}" class="kitchen-item-thumb">` : `<span class="item-emoji">${escapeHTML(item.emoji || '🍽️')}</span>`}
+                            <span>${escapeHTML(item.name)}</span>
                         </div>
-                        <span class="item-qty">x${item.qty}</span>
+                        <span class="item-qty">x${Number(item.qty) || 0}</span>
                     </div>
                 `).join('')}
             </div>
@@ -583,8 +635,15 @@ function getTimeInfo(timestamp) {
  * Update order status
  */
 async function updateStatus(id, newStatus) {
+    if (!['preparing', 'ready', 'served'].includes(newStatus)) return;
     const orderKey = String(id);
     const order = orders.find(item => String(item.id) === orderKey);
+    const nextAllowed = {
+        received: 'preparing',
+        preparing: 'ready',
+        ready: 'served'
+    };
+    if (!order || nextAllowed[order.status] !== newStatus) return;
     const previousStatus = order?.status;
 
     // Keep an in-flight poll from replacing this immediate UI update.
@@ -596,8 +655,8 @@ async function updateStatus(id, newStatus) {
         renderDashboard();
 
         const { error } = await supabaseClient
-            .from('orders')
-            .update({ status: newStatus })
+            .from('pedidos')
+            .update({ estado: DB_ORDER_STATUS[newStatus] })
             .eq('id', id);
 
         if (error) throw error;

@@ -39,7 +39,6 @@ const Z_INDEX = {
 };
 
 const CONFIG = {
-    vatRate: 0.05,
     currency: 'Gs. ',
     currencySymbol: 'Gs. ',
     estimatedTime: '15 a 20 min',
@@ -180,8 +179,6 @@ const DOM = {
     cartSummary: document.getElementById('cartSummary'),
     cartCount: document.getElementById('cartCount'),
     cartTableNumber: document.getElementById('cartTableNumber'),
-    subtotal: document.getElementById('subtotal'),
-    vat: document.getElementById('vat'),
     total: document.getElementById('total'),
     instructions: document.getElementById('instructions'),
     placeOrderBtn: document.getElementById('placeOrder'),
@@ -263,8 +260,8 @@ async function init() {
     if (tableFromURL) {
         setTable(tableFromURL);
     } else {
-        // Redirect to Management Dashboard if no table is selected
-        window.location.href = 'management/';
+        // A public landing page must never redirect guests to staff tools.
+        showWelcomeScreen();
     }
 
     setupEventListeners();
@@ -303,6 +300,11 @@ function syncActiveOrders() {
  * Fetch menu items from Supabase
  */
 async function fetchMenuItems() {
+    // The database is the source of truth for prices and availability. Never
+    // let example seed data remain purchasable when the live menu is empty or
+    // unavailable.
+    menuItems = [];
+    renderMenu(state.selectedCategory, state.searchQuery);
     try {
         const { data, error } = await supabaseClient
             .from('platos')
@@ -320,7 +322,7 @@ async function fetchMenuItems() {
             biryani: 'biriyani'
         };
 
-        menuItems = (data || []).map(plato => ({
+        const databaseMenu = (data || []).map(plato => ({
             id: plato.id,
             name: String(plato.nombre || ''),
             price: Number(plato.precio) || 0,
@@ -329,7 +331,8 @@ async function fetchMenuItems() {
             image: typeof plato.imagen_url === 'string' ? plato.imagen_url : '',
             desc: '',
             popular: false
-        })).filter(item => item.name && Number.isFinite(item.price));
+        })).filter(item => item.name && Number.isFinite(item.price) && item.price > 0);
+        menuItems = databaseMenu;
     } catch (error) {
         console.error('No se pudieron cargar los platos desde Supabase:', error);
         menuItems = [];
@@ -346,7 +349,12 @@ document.addEventListener('DOMContentLoaded', init);
 
 function getTableFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('table');
+    const table = urlParams.get('table');
+    if (!table || !/^\d{1,3}$/.test(table)) return null;
+    const tableNumber = Number(table);
+    return Number.isInteger(tableNumber) && tableNumber >= 1 && tableNumber <= 100
+        ? String(tableNumber)
+        : null;
 }
 
 function setTable(tableNumber) {
@@ -388,6 +396,7 @@ function updateTableDisplays(tableNumber) {
 
 function showWelcomeScreen() {
     if (DOM.welcomeScreen) {
+        DOM.welcomeScreen.classList.remove('hidden');
         DOM.welcomeScreen.style.display = 'flex';
         document.body.classList.add('welcome-active');
     }
@@ -395,6 +404,7 @@ function showWelcomeScreen() {
 
 function hideWelcomeScreen() {
     if (DOM.welcomeScreen) {
+        DOM.welcomeScreen.classList.add('hidden');
         DOM.welcomeScreen.style.display = 'none';
         document.body.classList.remove('welcome-active');
     }
@@ -475,7 +485,7 @@ function createMenuItemHTML(item, index) {
     return `
         <article class="food-card scroll-reveal" data-id="${safeId}" role="listitem" style="transition-delay: ${delay}s">
             <div class="food-card-image">
-                <img src="${safeImage}" alt="${safeName}" loading="lazy" onerror="this.src='https://placehold.co/400x400/1a1a1a/ffffff?text=${encodeURIComponent(item.name)}'">
+                <img src="${safeImage}" alt="${safeName}" loading="lazy" onerror="this.onerror=null;this.src='assets/images/logo.png'">
                 <div class="food-card-badges">
             ${item.popular ? '<span class="food-badge popular">Favorito</span>' : ''}
                 </div>
@@ -678,6 +688,10 @@ function addToCart(id) {
         const existingItem = state.cart.find(i => i.id == id);
 
         if (existingItem) {
+            if (existingItem.qty >= 99) {
+                showToast('Puedes pedir hasta 99 unidades por producto.', 'warning');
+                return;
+            }
             existingItem.qty++;
         } else {
             state.cart.push({ ...item, qty: 1 });
@@ -695,12 +709,13 @@ function addToCart(id) {
 
 function addToCartWithQty(id, qty) {
     let item = menuItems.find(i => i.id == id) || specialItems.find(i => i.id == id);
-    if (!item || qty < 1) return;
+    qty = Number(qty);
+    if (!item || !Number.isInteger(qty) || qty < 1 || qty > 99) return;
 
     const existingItem = state.cart.find(i => i.id == id);
 
     if (existingItem) {
-        existingItem.qty += qty;
+        existingItem.qty = Math.min(99, existingItem.qty + qty);
     } else {
         state.cart.push({ ...item, qty: qty });
     }
@@ -716,6 +731,7 @@ function updateCartItemQty(id, change) {
     if (!item) return;
 
     item.qty += change;
+    item.qty = Math.min(99, item.qty);
 
     if (item.qty <= 0) {
         removeFromCart(id);
@@ -733,15 +749,11 @@ function removeFromCart(id) {
 
 function updateCart() {
     const totalItems = state.cart.reduce((sum, item) => sum + item.qty, 0);
-    const subtotal = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const vatAmount = Math.round(subtotal * CONFIG.vatRate);
-    const totalAmount = subtotal + vatAmount;
+    const total = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
     updateCartBadges(totalItems);
 
-    if (DOM.subtotal) DOM.subtotal.innerHTML = `${CONFIG.currency}${subtotal}`;
-    if (DOM.vat) DOM.vat.innerHTML = `${CONFIG.currency}${vatAmount}`;
-    if (DOM.total) DOM.total.innerHTML = `${CONFIG.currency}${totalAmount}`;
+    if (DOM.total) DOM.total.innerHTML = `${CONFIG.currency}${total}`;
 
     const isEmpty = state.cart.length === 0;
     if (DOM.emptyCart) DOM.emptyCart.classList.toggle('hidden', !isEmpty);
@@ -765,18 +777,18 @@ function renderCartItems() {
     if (!DOM.cartItems) return;
 
     DOM.cartItems.innerHTML = state.cart.map(item => `
-        <div class="cart-item" data-id="${item.id}">
+        <div class="cart-item" data-id="${escapeHTML(item.id)}">
             <div class="cart-item-image">
-                <img src="${item.image}" alt="${item.name}">
+                <img src="${escapeHTML(item.image || '')}" alt="${escapeHTML(item.name)}">
             </div>
             <div class="cart-item-details">
-                <div class="cart-item-name">${item.name}</div>
+                <div class="cart-item-name">${escapeHTML(item.name)}</div>
                 <div class="cart-item-price">${CONFIG.currency}${item.price} c/u</div>
             </div>
             <div class="cart-item-quantity">
-                <button class="qty-btn" onclick="updateCartItemQty('${item.id}', -1)" aria-label="Reducir cantidad">−</button>
+                <button class="qty-btn" data-cart-change="-1" data-id="${escapeHTML(item.id)}" aria-label="Reducir cantidad">−</button>
                 <span class="qty-value">${item.qty}</span>
-                <button class="qty-btn" onclick="updateCartItemQty('${item.id}', 1)" aria-label="Aumentar cantidad">+</button>
+                <button class="qty-btn" data-cart-change="1" data-id="${escapeHTML(item.id)}" aria-label="Aumentar cantidad">+</button>
             </div>
         </div>
     `).join('');
@@ -819,38 +831,58 @@ async function placeOrder() {
         return;
     }
 
-    const carrito = [...state.cart];
+    if (!state.currentTable || !/^\d{1,3}$/.test(String(state.currentTable))) {
+        showToast('No pudimos identificar tu mesa. Vuelve a abrir el menú desde su código QR.', 'warning');
+        return;
+    }
+    if (DOM.instructions && DOM.instructions.value.length > 500) {
+        showToast('Las instrucciones no pueden superar los 500 caracteres.', 'warning');
+        DOM.instructions.focus();
+        return;
+    }
+
+    // Rebuild checkout lines from the live menu so edited localStorage values
+    // cannot set arbitrary prices, quantities, names, or image URLs.
+    const carrito = state.cart.map(line => {
+        const trusted = [...menuItems, ...specialItems].find(item => String(item.id) === String(line.id));
+        const qty = Number(line.qty);
+        return trusted && Number.isInteger(qty) && qty > 0 && qty <= 99
+            ? { ...trusted, qty }
+            : null;
+    }).filter(Boolean);
+    if (!carrito.length || carrito.length !== state.cart.length) {
+        state.cart = carrito;
+        updateCart();
+        saveToStorage();
+        showToast('Actualizamos tu carrito. Revisa los productos antes de confirmar.', 'warning');
+        return;
+    }
     const kitchenItems = carrito.map(removeInlineImageData);
-    const subtotal = carrito.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const vat = Math.round(subtotal * CONFIG.vatRate);
-    const totalCarrito = subtotal + vat;
+    const totalCarrito = carrito.reduce((sum, item) => sum + (item.price * item.qty), 0);
     if (DOM.placeOrderBtn) DOM.placeOrderBtn.disabled = true;
 
     try {
-        const orderNumber = generateOrderNumber();
-        const { error } = await kitchenSupabaseClient
-            .from('orders')
+        const instructions = DOM.instructions?.value.trim() || '';
+        const { data: savedOrder, error } = await kitchenSupabaseClient
+            .from('pedidos')
             .insert([{
-                order_number: String(orderNumber),
-                table_number: Number(state.currentTable || 1),
-                items: kitchenItems,
-                subtotal,
-                vat,
+                mesa: String(state.currentTable),
+                detalles: { items: kitchenItems, instructions },
                 total: totalCarrito,
-                instructions: DOM.instructions?.value || '',
-                status: 'received'
-            }]);
-
+                estado: 'Pendiente'
+            }])
+            .select('id')
+            .single();
         if (error) throw error;
+        if (!savedOrder || savedOrder.id == null) throw new Error('La base de datos no devolvió el número del pedido.');
+        const orderNumber = savedOrder.id;
 
         const order = {
             id: orderNumber,
             table: state.currentTable,
             items: carrito,
-            subtotal,
-            vat,
             total: totalCarrito,
-            instructions: DOM.instructions?.value || '',
+            instructions,
             status: 'received',
             timestamp: new Date().toISOString()
         };
@@ -866,17 +898,12 @@ async function placeOrder() {
         updateOrderBadges();
         closeCart();
         showSuccessModal(orderNumber);
-        alert('¡Pedido enviado con éxito! Gracias por tu compra.');
     } catch (error) {
         console.error('Error al enviar el pedido a Supabase:', error);
-        alert('No pudimos enviar tu pedido. Revisa tu conexión e inténtalo nuevamente.');
+        showToast('No pudimos enviar tu pedido. Revisa tu conexión e inténtalo nuevamente.', 'error');
     } finally {
         if (DOM.placeOrderBtn) DOM.placeOrderBtn.disabled = false;
     }
-}
-
-function generateOrderNumber() {
-    return Math.floor(10000 + Math.random() * 90000);
 }
 
 function simulateOrderProgress(orderNumber) {
@@ -976,7 +1003,7 @@ function renderOrders() {
             'served': { label: '<i data-lucide="check-circle"></i> Entregado', class: 'completed' }
         };
 
-        const status = statusConfig[order.status];
+        const status = statusConfig[order.status] || statusConfig.received;
         const orderRatings = state.ratings[order.id];
         const isRated = orderRatings && Object.keys(orderRatings).length > 0;
         const isServed = order.status === 'served';
@@ -985,32 +1012,32 @@ function renderOrders() {
             <div class="order-item">
                 <div class="order-header">
                     <div>
-                <div class="order-id">Pedido n.º ${order.id}</div>
-                        <div class="order-time">${formatDate(order.timestamp)}</div>
+                <div class="order-id">Pedido n.º ${escapeHTML(order.id)}</div>
+                        <div class="order-time">${escapeHTML(formatDate(order.timestamp))}</div>
                     </div>
                     <span class="order-status ${status.class}">${status.label}</span>
                 </div>
                 <div class="order-items-list">
                     ${order.items.map(item => {
             const itemRating = orderRatings && orderRatings[item.id];
-            const starsHTML = itemRating ? `<span class="order-item-rating">${'<i data-lucide="star"></i>'.repeat(itemRating.stars)}</span>` : '';
+            const starsHTML = itemRating ? `<span class="order-item-rating">${'<i data-lucide="star"></i>'.repeat(Math.max(0, Math.min(5, Number(itemRating.stars) || 0)))}</span>` : '';
             return `
                         <div class="order-item-row">
                             <span class="order-item-name">
-                                <img src="${item.image}" alt="${item.name}" class="order-item-thumb">
-                                ${item.name} 
-                                <span class="item-qty">×${item.qty}</span>
+                                <img src="${escapeHTML(item.image || '')}" alt="${escapeHTML(item.name)}" class="order-item-thumb">
+                                ${escapeHTML(item.name)}
+                                <span class="item-qty">×${escapeHTML(item.qty)}</span>
                                 ${starsHTML}
                             </span>
-                            <span>${CONFIG.currency}${item.price * item.qty}</span>
+                            <span>${CONFIG.currency}${Number(item.price) * Number(item.qty)}</span>
                         </div>
                     `}).join('')}
                 </div>
                 <div class="order-total">
-                    <span>Total (IVA incluido)</span>
-                    <span class="total-value gradient-text">${CONFIG.currency}${order.total}</span>
+                    <span>Total</span>
+                    <span class="total-value gradient-text">${CONFIG.currency}${Number(order.total) || 0}</span>
                 </div>
-                ${isServed && !isRated ? `<button class="rate-order-btn" onclick="showRatingModal('${order.id}')"><i data-lucide="star"></i> Calificar platillos</button>` : ''}
+                ${isServed && !isRated ? `<button class="rate-order-btn" data-rate-order="${escapeHTML(order.id)}"><i data-lucide="star"></i> Calificar platillos</button>` : ''}
                 ${isRated ? '<span class="rated-badge"><i data-lucide="check-circle"></i> Calificado</span>' : ''}
             </div>
         `;
@@ -1075,12 +1102,12 @@ function renderTrackOrders() {
             status: order.status,
             html: `
             <div class="track-order-card ${isServed ? 'order-served' : ''}" 
-                 data-order-id="${order.id}" 
-                 data-last-status="${order.status}">
+                 data-order-id="${escapeHTML(order.id)}"
+                 data-last-status="${escapeHTML(order.status)}">
                 <div class="track-order-header">
                     <div>
-                        <div class="track-order-id">Pedido n.º ${order.id}</div>
-                        <div class="track-order-time">${formatTime(order.timestamp)}</div>
+                        <div class="track-order-id">Pedido n.º ${escapeHTML(order.id)}</div>
+                        <div class="track-order-time">${escapeHTML(formatTime(order.timestamp))}</div>
                     </div>
                     ${isServed ? `
                         <span class="track-status-badge completed"><i data-lucide="check-circle"></i> Entregado</span>
@@ -1127,11 +1154,11 @@ function renderTrackOrders() {
                     ${order.items.map(item => `
                         <div class="order-item-row">
                             <span class="order-item-name">
-                                <img src="${item.image}" alt="${item.name}" class="order-item-thumb">
-                                ${item.name} 
-                                <span class="item-qty">×${item.qty}</span>
+                                <img src="${escapeHTML(item.image || '')}" alt="${escapeHTML(item.name)}" class="order-item-thumb">
+                                ${escapeHTML(item.name)}
+                                <span class="item-qty">×${escapeHTML(item.qty)}</span>
                             </span>
-                            <span>${CONFIG.currency}${item.price * item.qty}</span>
+                            <span>${CONFIG.currency}${Number(item.price) * Number(item.qty)}</span>
                         </div>
                     `).join('')}
                 </div>
@@ -1139,7 +1166,7 @@ function renderTrackOrders() {
                 <div class="track-order-footer">
                     <div class="track-total">
                         <span class="track-total-label">Total</span>
-                        <span class="track-total-value gradient-text">${CONFIG.currency}${order.total}</span>
+                        <span class="track-total-value gradient-text">${CONFIG.currency}${Number(order.total) || 0}</span>
                     </div>
                     ${!isServed ? `
                         <div class="track-eta">
@@ -1383,8 +1410,8 @@ function openItemModal(id) {
                 <div class="review-card">
                     <div class="review-header">
                         <span class="review-stars">
-                            ${'<i data-lucide="star" class="icon-star-filled"></i>'.repeat(review.stars)}
-                            ${'<i data-lucide="star"></i>'.repeat(5 - review.stars)}
+                            ${'<i data-lucide="star" class="icon-star-filled"></i>'.repeat(Math.max(0, Math.min(5, Number(review.stars) || 0)))}
+                            ${'<i data-lucide="star"></i>'.repeat(5 - Math.max(0, Math.min(5, Number(review.stars) || 0)))}
                         </span>
                         ${review.date ? `<span class="review-date">${formatReviewDate(review.date)}</span>` : ''}
                     </div>
@@ -1457,7 +1484,7 @@ async function callWaiter() {
         const { error } = await kitchenSupabaseClient
             .from('waiter_calls')
             .insert([{
-                table_number: state.currentTable,
+                table_number: Number(state.currentTable),
                 status: 'pending'
             }]);
 
@@ -1550,6 +1577,18 @@ function setupEventListeners() {
     // 1. UNIVERSAL CLICK DELEGATION
     document.addEventListener('click', (e) => {
         const target = e.target;
+
+        const cartChange = target.closest('[data-cart-change][data-id]');
+        if (cartChange) {
+            updateCartItemQty(cartChange.dataset.id, Number(cartChange.dataset.cartChange));
+            return;
+        }
+
+        const rateOrderButton = target.closest('[data-rate-order]');
+        if (rateOrderButton) {
+            showRatingModal(rateOrderButton.dataset.rateOrder);
+            return;
+        }
 
         // Table selection on welcome screen (Manual Selection)
         const tableBtn = target.closest('.table-btn-compact, .table-card-premium');
@@ -1779,9 +1818,25 @@ function loadFromStorage() {
         const data = localStorage.getItem(`rannaghor_table_${state.currentTable}`);
         if (data) {
             const parsed = JSON.parse(data);
-            state.cart = parsed.cart || [];
-            state.orders = parsed.orders || [];
-            state.ratings = parsed.ratings || {};
+            const cleanItem = item => {
+                if (!item || !/^[\w-]{1,80}$/.test(String(item.id))) return null;
+                const price = Number(item.price);
+                const qty = Number(item.qty);
+                if (typeof item.name !== 'string' || !Number.isFinite(price) || price < 0 || !Number.isInteger(qty) || qty < 1 || qty > 99) return null;
+                return { ...item, id: String(item.id), name: item.name.slice(0, 120), price, qty, image: typeof item.image === 'string' ? item.image.slice(0, 3000000) : '' };
+            };
+            state.cart = Array.isArray(parsed.cart) ? parsed.cart.map(cleanItem).filter(Boolean) : [];
+            const validStatuses = new Set(['received', 'preparing', 'ready', 'served']);
+            state.orders = Array.isArray(parsed.orders) ? parsed.orders.filter(order =>
+                order && /^[\w-]{1,80}$/.test(String(order.id)) && validStatuses.has(order.status) && Array.isArray(order.items)
+            ).map(order => ({
+                ...order,
+                id: String(order.id),
+                items: order.items.map(cleanItem).filter(Boolean),
+                total: Number(order.total) || 0,
+                timestamp: typeof order.timestamp === 'string' ? order.timestamp : ''
+            })).filter(order => order.items.length > 0) : [];
+            state.ratings = parsed.ratings && typeof parsed.ratings === 'object' && !Array.isArray(parsed.ratings) ? parsed.ratings : {};
             updateCart();
         }
     } catch (e) {
@@ -1854,20 +1909,30 @@ function subscribeToOrderUpdates(orderNumber) {
         .on('postgres_changes', {
             event: 'UPDATE',
             schema: 'public',
-            table: 'orders',
-            filter: `order_number=eq.${orderNumber}`
+            table: 'pedidos',
+            filter: `id=eq.${orderNumber}`
         }, (payload) => {
-            updateOrderStatus(orderNumber, payload.new.status);
+            const statusMap = {
+                'pendiente': 'received',
+                'en preparación': 'preparing',
+                'preparando': 'preparing',
+                'listo': 'ready',
+                'entregado': 'served',
+                'servido': 'served'
+            };
+            const estado = String(payload.new.estado || '').trim().toLocaleLowerCase('es');
+            const newStatus = statusMap[estado] || 'received';
+            updateOrderStatus(orderNumber, newStatus);
 
             // Show toast for transparency
             const statusEmojis = { 'preparing': '👨‍🍳', 'ready': '🍽️', 'served': '✅' };
-            const emoji = statusEmojis[payload.new.status] || '🔔';
+            const emoji = statusEmojis[newStatus] || '🔔';
             const statuses = { received: 'recibido', preparing: 'en preparación', ready: 'listo', served: 'entregado' };
-            const status = statuses[payload.new.status] || payload.new.status;
+            const status = statuses[newStatus] || newStatus;
             showToast(`${emoji} Estado del pedido n.º ${orderNumber}: ${status}`);
 
             // Auto-trigger rating when order is served
-            if (payload.new.status === 'served') {
+            if (newStatus === 'served') {
                 setTimeout(() => showRatingModal(orderNumber), 5000);
             }
         })
@@ -1907,16 +1972,15 @@ function showRatingModal(orderNumber) {
     // Build per-item rating rows
     if (DOM.ratingItemsList) {
         DOM.ratingItemsList.innerHTML = order.items.map(item => `
-            <div class="rating-item-row" data-item-id="${item.id}">
-                <img src="${item.image}" alt="${item.name}" class="rating-item-thumb"
-                     onerror="this.src='https://placehold.co/112x112/1a1a1a/ffffff?text=${encodeURIComponent(item.name)}'">
+            <div class="rating-item-row" data-item-id="${escapeHTML(item.id)}">
+                <img src="${escapeHTML(item.image || '')}" alt="${escapeHTML(item.name)}" class="rating-item-thumb">
                 <div class="rating-item-info">
-                    <div class="rating-item-name">${item.name}</div>
-            <div class="rating-item-qty">Cantidad: ${item.qty}</div>
-                    <div class="star-selector" data-item-id="${item.id}">
+                    <div class="rating-item-name">${escapeHTML(item.name)}</div>
+            <div class="rating-item-qty">Cantidad: ${escapeHTML(item.qty)}</div>
+                    <div class="star-selector" data-item-id="${escapeHTML(item.id)}">
                         ${[1, 2, 3, 4, 5].map(s => `<button class="star-btn" data-star="${s}" aria-label="${s} estrellas"><i data-lucide="star"></i></button>`).join('')}
                     </div>
-                    <input type="text" class="rating-feedback-input" data-item-id="${item.id}"
+                    <input type="text" class="rating-feedback-input" data-item-id="${escapeHTML(item.id)}"
                            placeholder="¿Algún comentario? (opcional)" maxlength="120">
                 </div>
             </div>
@@ -1953,7 +2017,7 @@ function showRatingModal(orderNumber) {
     showModal(DOM.ratingModal);
 }
 
-function handleSubmitRatings() {
+async function handleSubmitRatings() {
     const orderNumber = state.ratingOrderId;
     if (!orderNumber) return;
 
@@ -1982,6 +2046,14 @@ function handleSubmitRatings() {
 
     if (!hasAnyRating) {
         showToast('¡Califica al menos un platillo!', 'warning');
+        return;
+    }
+
+    try {
+        await saveRatingsToSupabase(orderNumber, itemRatings);
+    } catch (error) {
+        console.error('Error saving ratings to Supabase:', error.message);
+        showToast('No pudimos guardar tu calificación. Inténtalo de nuevo.', 'error');
         return;
     }
 
@@ -2021,11 +2093,6 @@ function handleSubmitRatings() {
         }
     });
 
-    // Save to Supabase if configured
-    if (typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-        saveRatingsToSupabase(orderNumber, itemRatings);
-    }
-
     // Hide the rating modal immediately
     hideModal(DOM.ratingModal);
 
@@ -2040,25 +2107,21 @@ function handleSubmitRatings() {
 }
 
 async function saveRatingsToSupabase(orderNumber, itemRatings) {
-    try {
-        const ratingRows = Object.entries(itemRatings).map(([itemId, rating]) => ({
-            order_number: String(orderNumber),
-            table_number: parseInt(state.currentTable),
-            item_id: String(itemId),
-            item_name: rating.itemName,
-            stars: rating.stars,
-            feedback: rating.feedback || '',
-            created_at: new Date().toISOString()
-        }));
+    const ratingRows = Object.entries(itemRatings).map(([itemId, rating]) => ({
+        order_number: String(orderNumber),
+        table_number: Number(state.currentTable),
+        item_id: String(itemId),
+        item_name: String(rating.itemName).slice(0, 120),
+        stars: Math.max(1, Math.min(5, Number(rating.stars) || 0)),
+        feedback: String(rating.feedback || '').slice(0, 120),
+        created_at: new Date().toISOString()
+    }));
 
-        const { error } = await supabaseClient
-            .from('ratings')
-            .insert(ratingRows);
+    const { error } = await supabaseClient
+        .from('ratings')
+        .insert(ratingRows);
 
-        if (error) throw error;
-    } catch (err) {
-        console.error('Error saving ratings to Supabase:', err.message);
-    }
+    if (error) throw error;
 }
 
 /**

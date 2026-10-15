@@ -381,7 +381,7 @@
     <div class="admin-container">
         <section class="products-section" aria-labelledby="productsTitle">
             <h2 id="productsTitle" class="selector-title">Administrar productos</h2>
-            <p class="products-intro">Agrega y administra los platos que quieras tener registrados en este navegador.</p>
+            <p class="products-intro">Agrega y administra los platos publicados en el menú del restaurante.</p>
 
             <form id="productForm" class="product-form">
                 <input type="hidden" id="productId">
@@ -507,7 +507,7 @@
 
                 tableBody.innerHTML = products.map(product => `
                     <tr>
-                        <td>${product.image ? `<img class="product-thumb" src="${escapeHTML(product.image)}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.hidden=true">` : '—'}</td>
+                        <td>${safeImageUrl(product.image) ? `<img class="product-thumb" src="${escapeHTML(safeImageUrl(product.image))}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.hidden=true">` : '—'}</td>
                         <td>${escapeHTML(product.name)}</td>
                         <td>${new Intl.NumberFormat('es-419', { maximumFractionDigits: 2 }).format(product.price)}</td>
                         <td>${escapeHTML(categoryLabelFor(product.category))}</td>
@@ -523,6 +523,17 @@
                 return option ? option.textContent : category || '—';
             }
 
+            function safeImageUrl(value) {
+                if (typeof value !== 'string' || value.length > 3_000_000) return '';
+                if (/^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/]+=*$/i.test(value)) return value;
+                try {
+                    const url = new URL(value, window.location.href);
+                    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+                } catch (_) {
+                    return '';
+                }
+            }
+
             function resetForm() {
                 form.reset();
                 idInput.value = '';
@@ -532,6 +543,12 @@
             }
 
             function readImageAsBase64(file) {
+                if (!file || !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+                    return Promise.reject(new Error('Usa una imagen PNG, JPG, WEBP o GIF.'));
+                }
+                if (file.size > 2 * 1024 * 1024) {
+                    return Promise.reject(new Error('La imagen no puede superar los 2 MB.'));
+                }
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
@@ -547,8 +564,17 @@
                 const category = categoryInput.value;
                 const selectedFile = imageInput.files[0];
 
-                if (!name || !Number.isFinite(price) || price <= 0) {
+                if (!name || name.length > 100 || !Number.isFinite(price) || price <= 0 || price > 1_000_000_000 || !Array.from(categoryInput.options).some(option => option.value === category)) {
                     message.textContent = 'Ingresa un nombre y un precio mayor que cero.';
+                    return;
+                }
+
+                if (selectedFile && !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(selectedFile.type)) {
+                    message.textContent = 'Usa una imagen PNG, JPG, WEBP o GIF.';
+                    return;
+                }
+                if (selectedFile && selectedFile.size > 2 * 1024 * 1024) {
+                    message.textContent = 'La imagen no puede superar los 2 MB.';
                     return;
                 }
 
