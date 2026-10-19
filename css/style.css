@@ -2254,6 +2254,13 @@ h6 {
     border-top: 1px solid var(--color-border);
 }
 
+.tax-breakdown {
+    margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+    text-align: right;
+}
+
 /* Cart Instructions */
 .cart-instructions {
     margin-bottom: var(--space-md);
@@ -5865,4 +5872,130 @@ body.welcome-active {
     .reviews-list {
         max-height: 140px;
     }
+}
+.entry-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    width: min(880px, 92vw);
+    margin: 1rem auto 0;
+}
+
+.welcome-container {
+    width: min(920px, 100%);
+    max-width: 920px;
+}
+
+.entry-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    text-align: left;
+}
+
+.entry-link {
+    text-decoration: none;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.entry-link:hover,
+.entry-link:focus-visible {
+    border-color: rgba(255, 166, 0, 0.75);
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.entry-card-icon {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-bottom: 0.65rem;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: rgba(255, 166, 0, 0.14);
+    color: #ffb52e;
+}
+
+.entry-card h2 {
+    margin: 0 0 0.4rem;
+    font-size: 1.05rem;
+}
+
+.entry-card p {
+    margin: 0 0 1rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.entry-table-form {
+    display: grid;
+    width: 100%;
+    gap: 0.5rem;
+    margin-top: auto;
+}
+
+.entry-table-form label {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.entry-table-form input {
+    width: 100%;
+    min-height: 2.7rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.55rem;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+}
+
+.entry-link-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: auto;
+    color: #ffb52e;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+@media (max-width: 700px) {
+    .welcome-screen {
+        overflow-y: auto !important;
+        align-items: flex-start !important;
+    }
+
+    .welcome-container {
+        max-width: 460px;
+        margin: auto;
+        padding: 1.25rem 0;
+    }
+
+    .entry-options {
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .entry-card {
+        padding: 1rem;
+    }
+}
+
+.demo-menu-notice {
+    max-width: 900px;
+    margin: 0 auto 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(255, 181, 46, 0.45);
+    border-radius: 0.75rem;
+    background: rgba(255, 181, 46, 0.1);
+    color: #ffe0a0;
+    font-size: 0.85rem;
+    line-height: 1.5;
 }

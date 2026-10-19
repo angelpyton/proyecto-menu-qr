@@ -3,13 +3,14 @@
    Complete JavaScript Application (FIXED)
    ============================================ */
 
-const SUPABASE_URL = 'https://gudjaroffkrwmsqvczip.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_NbuvsGvR625a6e9dIXAPZw_inbC3j5A';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const kitchenSupabaseClient = window.supabase.createClient(
-    'https://iljzsquigtcpxigsrqay.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsanpzcXVpZ3RjcHhpZ3NycWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMTA5MTEsImV4cCI6MjA4NDU4NjkxMX0.dNRDvi5o-qTvRF0Pcl3frWP9EWPVEsDq_pQ0Ymp0Dyw'
-);
+const RESTAURANT_CONFIG = window.RESTAURANT_CONFIG || { menu: {}, operations: {} };
+const supabaseSDK = window.supabase;
+const supabaseClient = supabaseSDK?.createClient && RESTAURANT_CONFIG.menu.url && RESTAURANT_CONFIG.menu.anonKey
+    ? supabaseSDK.createClient(RESTAURANT_CONFIG.menu.url, RESTAURANT_CONFIG.menu.anonKey)
+    : null;
+const kitchenSupabaseClient = supabaseSDK?.createClient && RESTAURANT_CONFIG.operations.url && RESTAURANT_CONFIG.operations.anonKey
+    ? supabaseSDK.createClient(RESTAURANT_CONFIG.operations.url, RESTAURANT_CONFIG.operations.anonKey)
+    : null;
 
 // ==========================================
 // 1. CONFIGURATION & DATA
@@ -21,10 +22,7 @@ const TIMINGS = {
     TOAST_DURATION: 3000,        // How long toasts stay visible
     ANIMATION_DELAY: 100,        // General animation delay
     CART_TRANSITION: 300,        // Cart sidebar transition
-    TABLE_SELECT_DELAY: 800,     // Delay before hiding welcome screen
-    ORDER_STATUS_PREPARING: 5000,  // Time until order moves to "ready"
-    ORDER_STATUS_READY: 15000,     // Time until order is "ready"
-    ORDER_STATUS_SERVED: 25000     // Time until order is "served"
+    TABLE_SELECT_DELAY: 800      // Delay before hiding welcome screen
 };
 
 // Z-Index System (Issue #4: Magic Numbers)
@@ -41,12 +39,8 @@ const Z_INDEX = {
 const CONFIG = {
     currency: 'Gs. ',
     currencySymbol: 'Gs. ',
+    taxRate: 0.10,
     estimatedTime: '15 a 20 min',
-    orderStatusDelay: {
-        preparing: TIMINGS.ORDER_STATUS_PREPARING,
-        ready: TIMINGS.ORDER_STATUS_READY,
-        served: TIMINGS.ORDER_STATUS_SERVED
-    },
     toastDuration: TIMINGS.TOAST_DURATION,
     animationDelay: TIMINGS.ANIMATION_DELAY
 };
@@ -99,9 +93,11 @@ let menuItems = [
     { id: 33, name: "Coffee", category: "drinks", price: 70, image: "assets/images/food/coffee.jpg", desc: "Café molido, intenso y aromático" },
     { id: 34, name: "Lemonade", category: "drinks", price: 40, image: "assets/images/food/lemonade.jpg", desc: "Jugo de limón fresco con hojas de menta" },
 ];
+const demoMenuItems = menuItems.map(item => ({ ...item }));
+let menuIsDemo = false;
 
 // Special Items Data (Fallback data)
-let specialItems = [
+const demoSpecialItems = [
     {
         id: 'special1',
         name: "Pollo tandoori entero",
@@ -120,6 +116,7 @@ let specialItems = [
         category: "meat"
     }
 ];
+let specialItems = [];
 
 // ==========================================
 // 2. STATE MANAGEMENT
@@ -141,6 +138,16 @@ const state = {
     ratingOrderId: null // Currently rating order
 };
 let storageWarningShown = false;
+let menuLoadError = false;
+const orderStatusPollers = new Map();
+
+function isOrderBackendReady() {
+    return Boolean(
+        supabaseClient &&
+        kitchenSupabaseClient &&
+        RESTAURANT_CONFIG.menu.url === RESTAURANT_CONFIG.operations.url
+    );
+}
 
 // ==========================================
 // 3. DOM ELEMENTS
@@ -149,6 +156,8 @@ let storageWarningShown = false;
 const DOM = {
     // Welcome Screen
     welcomeScreen: document.getElementById('welcomeScreen'),
+    tableEntryForm: document.getElementById('tableEntryForm'),
+    tableEntry: document.getElementById('tableEntry'),
     qrGridContainer: document.getElementById('qrGridContainer'),
     kitchenAdminBtn: document.getElementById('kitchenAdminBtn'),
 
@@ -164,6 +173,7 @@ const DOM = {
 
     // Menu
     menuGrid: document.getElementById('menuGrid'),
+    demoMenuNotice: document.getElementById('demoMenuNotice'),
     categoryTabs: document.querySelectorAll('.category-tab'),
     menuSearch: document.getElementById('menuSearch'),
     clearSearch: document.getElementById('clearSearch'),
@@ -180,6 +190,7 @@ const DOM = {
     cartCount: document.getElementById('cartCount'),
     cartTableNumber: document.getElementById('cartTableNumber'),
     total: document.getElementById('total'),
+    taxBreakdown: document.getElementById('taxBreakdown'),
     instructions: document.getElementById('instructions'),
     placeOrderBtn: document.getElementById('placeOrder'),
 
@@ -287,7 +298,7 @@ async function init() {
  * Sync active orders from LocalStorage with Supabase
  */
 function syncActiveOrders() {
-    if (typeof SUPABASE_URL === 'undefined' || SUPABASE_URL === 'YOUR_SUPABASE_URL') return;
+    if (!kitchenSupabaseClient || !RESTAURANT_CONFIG.operations.url || !RESTAURANT_CONFIG.operations.anonKey) return;
 
     state.orders.forEach(order => {
         if (order.status !== 'served') {
@@ -303,15 +314,17 @@ async function fetchMenuItems() {
     // The database is the source of truth for prices and availability. Never
     // let example seed data remain purchasable when the live menu is empty or
     // unavailable.
+    menuIsDemo = false;
+    menuLoadError = false;
     menuItems = [];
     renderMenu(state.selectedCategory, state.searchQuery);
     try {
+        if (!supabaseClient) throw new Error('No se cargó el cliente de Supabase.');
         const { data, error } = await supabaseClient
             .from('platos')
             .select('*');
 
         if (error) throw error;
-
         const categoryMap = {
             bebidas: 'drinks',
             postres: 'dessert',
@@ -332,12 +345,32 @@ async function fetchMenuItems() {
             desc: '',
             popular: false
         })).filter(item => item.name && Number.isFinite(item.price) && item.price > 0);
-        menuItems = databaseMenu;
+        if (databaseMenu.length > 0) {
+            menuItems = databaseMenu;
+            specialItems = [];
+        } else {
+            menuItems = demoMenuItems.map(item => ({ ...item }));
+            specialItems = demoSpecialItems.map(item => ({ ...item }));
+            menuIsDemo = true;
+        }
     } catch (error) {
         console.error('No se pudieron cargar los platos desde Supabase:', error);
-        menuItems = [];
+        menuLoadError = true;
+        menuItems = demoMenuItems.map(item => ({ ...item }));
+        specialItems = demoSpecialItems.map(item => ({ ...item }));
+        menuIsDemo = true;
     }
 
+    if (DOM.demoMenuNotice) {
+        const orderBackendReady = isOrderBackendReady();
+        DOM.demoMenuNotice.classList.toggle('hidden', !menuIsDemo && orderBackendReady);
+        DOM.demoMenuNotice.textContent = menuLoadError
+            ? 'No se pudo conectar con el menú de Supabase. Esto es una vista de demostración; no se pueden enviar pedidos.'
+            : menuIsDemo
+                ? 'La tabla platos todavía no tiene productos. Esto es una vista de demostración; carga el menú real en Administración para habilitar pedidos.'
+                : 'El menú está conectado, pero menú y pedidos deben usar el mismo proyecto Supabase para validar precios de forma segura.';
+    }
+    renderSpecials();
     renderMenu(state.selectedCategory, state.searchQuery);
 }
 
@@ -444,8 +477,12 @@ function renderMenu(category = 'all', searchQuery = '') {
         const title = DOM.noResults.querySelector('.no-results-title');
         const subtitle = DOM.noResults.querySelector('.no-results-subtitle');
         if (menuItems.length === 0) {
-            if (title) title.textContent = 'No hay platos disponibles por el momento';
-            if (subtitle) subtitle.textContent = '';
+            if (title) title.textContent = menuLoadError
+                ? 'No pudimos cargar el menú'
+                : 'Todavía no hay platos cargados';
+            if (subtitle) subtitle.textContent = menuLoadError
+                ? 'Comprueba la conexión con Supabase, la tabla platos y sus permisos RLS.'
+                : 'Añade los productos en Administración para que aparezcan aquí.';
         } else {
             if (title) title.textContent = 'No encontramos platillos';
             if (subtitle) subtitle.textContent = 'Prueba con otra búsqueda';
@@ -473,6 +510,7 @@ function createMenuItemHTML(item, index) {
     const safeImage = escapeHTML(item.image || '');
     const safeDescription = escapeHTML(item.desc || '');
     const safeId = escapeHTML(item.id);
+    const canOrder = !menuIsDemo && isOrderBackendReady();
 
     const ratingHTML = `
         <div class="food-card-rating">
@@ -498,8 +536,8 @@ function createMenuItemHTML(item, index) {
                 <p class="food-card-description">${safeDescription}</p>
                 <div class="food-card-footer">
                     <span class="food-card-price gradient-text">${CONFIG.currency}${item.price}</span>
-                    <button class="btn btn-primary btn-add btn-menu-item" data-id="${safeId}" aria-label="Agregar ${safeName} al carrito">
-                        Add +
+                    <button class="btn btn-primary btn-add btn-menu-item" data-id="${safeId}" aria-label="Agregar ${safeName} al carrito" ${canOrder ? '' : 'disabled aria-disabled="true"'}>
+                        ${canOrder ? 'Agregar +' : 'Solo vista'}
                     </button>
                 </div>
             </div>
@@ -515,10 +553,17 @@ function attachMenuItemListeners() {
 // Render Special Items dynamically
 function renderSpecials() {
     const specialsContainer = document.getElementById('specials');
-    if (!specialsContainer || specialItems.length === 0) return;
+    if (!specialsContainer) return;
+    if (specialItems.length === 0) {
+        specialsContainer.innerHTML = '';
+        if (state.slideInterval) clearInterval(state.slideInterval);
+        state.slideInterval = null;
+        return;
+    }
 
     let slidesHTML = '';
     let dotsHTML = '<div class="slider-pagination">';
+    const canOrderSpecials = !menuIsDemo && isOrderBackendReady();
 
     specialItems.forEach((item, index) => {
         const isActive = index === 0 ? 'active' : '';
@@ -548,7 +593,7 @@ function renderSpecials() {
                             <span class="price-current"><span class="currency">${CONFIG.currencySymbol}</span>${item.price}</span>
                             ${originalPriceHTML}
                         </div>
-                        <button class="btn btn-primary btn-add btn-special" data-id="${item.id}">Agregar +</button>
+                        <button class="btn btn-primary btn-add btn-special" data-id="${item.id}" ${canOrderSpecials ? '' : 'disabled aria-disabled="true"'}>${canOrderSpecials ? 'Agregar +' : 'Solo vista'}</button>
                     </div>
                 </div>
             </div>
@@ -678,6 +723,12 @@ function clearSearch() {
 // ==========================================
 
 function addToCart(id) {
+    if (menuIsDemo || !isOrderBackendReady()) {
+        showToast(menuIsDemo
+            ? 'La vista de demostración no acepta pedidos. Carga los platos reales en Administración.'
+            : 'Configura el proyecto de pedidos en js/app-config.js para habilitar compras.', 'warning');
+        return;
+    }
     try {
         let item = menuItems.find(i => i.id == id) || specialItems.find(i => i.id == id);
         if (!item) {
@@ -708,6 +759,12 @@ function addToCart(id) {
 }
 
 function addToCartWithQty(id, qty) {
+    if (menuIsDemo || !isOrderBackendReady()) {
+        showToast(menuIsDemo
+            ? 'La vista de demostración no acepta pedidos. Carga los platos reales en Administración.'
+            : 'Configura el proyecto de pedidos en js/app-config.js para habilitar compras.', 'warning');
+        return;
+    }
     let item = menuItems.find(i => i.id == id) || specialItems.find(i => i.id == id);
     qty = Number(qty);
     if (!item || !Number.isInteger(qty) || qty < 1 || qty > 99) return;
@@ -747,13 +804,27 @@ function removeFromCart(id) {
     saveToStorage();
 }
 
+function getIncludedTax(total) {
+    const safeTotal = Number(total);
+    if (!Number.isFinite(safeTotal) || safeTotal <= 0) return 0;
+    return Math.round(safeTotal * CONFIG.taxRate / (1 + CONFIG.taxRate));
+}
+
+function formatMoney(amount) {
+    return new Intl.NumberFormat('es-PY', { maximumFractionDigits: 0 }).format(Number(amount) || 0);
+}
+
 function updateCart() {
     const totalItems = state.cart.reduce((sum, item) => sum + item.qty, 0);
     const total = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
     updateCartBadges(totalItems);
 
-    if (DOM.total) DOM.total.innerHTML = `${CONFIG.currency}${total}`;
+    if (DOM.total) DOM.total.innerHTML = `${CONFIG.currency}${formatMoney(total)}`;
+    if (DOM.taxBreakdown) {
+        const tax = getIncludedTax(total);
+        DOM.taxBreakdown.textContent = `Incluye IVA (10%): ${CONFIG.currency}${formatMoney(tax)}`;
+    }
 
     const isEmpty = state.cart.length === 0;
     if (DOM.emptyCart) DOM.emptyCart.classList.toggle('hidden', !isEmpty);
@@ -826,6 +897,12 @@ function closeCart() {
 // ==========================================
 
 async function placeOrder() {
+    if (menuIsDemo || !isOrderBackendReady()) {
+        showToast(menuIsDemo
+            ? 'No se pueden enviar pedidos desde la vista de demostración.'
+            : 'Configura el proyecto de pedidos en js/app-config.js para habilitar compras.', 'warning');
+        return;
+    }
     if (state.cart.length === 0) {
         showToast('¡Tu carrito está vacío!', 'warning');
         return;
@@ -844,7 +921,7 @@ async function placeOrder() {
     // Rebuild checkout lines from the live menu so edited localStorage values
     // cannot set arbitrary prices, quantities, names, or image URLs.
     const carrito = state.cart.map(line => {
-        const trusted = [...menuItems, ...specialItems].find(item => String(item.id) === String(line.id));
+        const trusted = menuItems.find(item => String(item.id) === String(line.id));
         const qty = Number(line.qty);
         return trusted && Number.isInteger(qty) && qty > 0 && qty <= 99
             ? { ...trusted, qty }
@@ -857,32 +934,32 @@ async function placeOrder() {
         showToast('Actualizamos tu carrito. Revisa los productos antes de confirmar.', 'warning');
         return;
     }
-    const kitchenItems = carrito.map(removeInlineImageData);
     const totalCarrito = carrito.reduce((sum, item) => sum + (item.price * item.qty), 0);
     if (DOM.placeOrderBtn) DOM.placeOrderBtn.disabled = true;
 
     try {
         const instructions = DOM.instructions?.value.trim() || '';
-        const { data: savedOrder, error } = await kitchenSupabaseClient
-            .from('pedidos')
-            .insert([{
-                mesa: String(state.currentTable),
-                detalles: { items: kitchenItems, instructions },
-                total: totalCarrito,
-                estado: 'Pendiente'
-            }])
-            .select('id')
-            .single();
+        if (!window.crypto?.randomUUID) throw new Error('Este navegador no permite generar un token de seguimiento seguro.');
+        const trackingToken = crypto.randomUUID();
+        const { data: savedOrder, error } = await kitchenSupabaseClient.rpc('create_order', {
+            p_table: Number(state.currentTable),
+            p_items: carrito.map(item => ({ id: String(item.id), qty: item.qty })),
+            p_instructions: instructions,
+            p_tracking_token: trackingToken
+        });
         if (error) throw error;
         if (!savedOrder || savedOrder.id == null) throw new Error('La base de datos no devolvió el número del pedido.');
         const orderNumber = savedOrder.id;
+        const savedItems = Array.isArray(savedOrder.details?.items) ? savedOrder.details.items : carrito;
+        const savedTotal = Number(savedOrder.total);
 
         const order = {
             id: orderNumber,
             table: state.currentTable,
-            items: carrito,
-            total: totalCarrito,
+            items: savedItems,
+            total: Number.isFinite(savedTotal) ? savedTotal : totalCarrito,
             instructions,
+            trackingToken,
             status: 'received',
             timestamp: new Date().toISOString()
         };
@@ -906,28 +983,6 @@ async function placeOrder() {
     }
 }
 
-function simulateOrderProgress(orderNumber) {
-    const { preparing, ready, served } = CONFIG.orderStatusDelay;
-
-    setTimeout(() => {
-        updateOrderStatus(orderNumber, 'preparing');
-        showToast('👨‍🍳 ¡Estamos preparando tu pedido!');
-    }, preparing);
-
-    setTimeout(() => {
-        updateOrderStatus(orderNumber, 'ready');
-        showToast('🍽️ ¡Tu pedido está listo!');
-    }, ready);
-
-    setTimeout(() => {
-        updateOrderStatus(orderNumber, 'served');
-        showToast('✅ Pedido entregado. ¡Buen provecho!');
-        updateOrderBadges();
-        // Auto-trigger rating modal for served order
-        setTimeout(() => showRatingModal(orderNumber), 5000);
-    }, served);
-}
-
 function updateOrderStatus(orderNumber, newStatus) {
 
     // Use loose equality and string conversion to be safe with IDs
@@ -937,10 +992,6 @@ function updateOrderStatus(orderNumber, newStatus) {
         console.warn(`Order #${orderNumber} not found in local state.`);
         return;
     }
-
-    const statusIndex = { 'received': 0, 'preparing': 1, 'ready': 2, 'served': 3 };
-    const normalizedStatus = String(newStatus || '').toLowerCase();
-    const newStatusIndex = statusIndex[normalizedStatus] ?? 0;
 
     // Trigger animation BEFORE changing status (if modal is open)
     if (DOM.trackOrderModal && !DOM.trackOrderModal.classList.contains('hidden')) {
@@ -1035,8 +1086,9 @@ function renderOrders() {
                 </div>
                 <div class="order-total">
                     <span>Total</span>
-                    <span class="total-value gradient-text">${CONFIG.currency}${Number(order.total) || 0}</span>
+                    <span class="total-value gradient-text">${CONFIG.currency}${formatMoney(order.total)}</span>
                 </div>
+                <div class="tax-breakdown">Incluye IVA (10%): ${CONFIG.currency}${formatMoney(getIncludedTax(order.total))}</div>
                 ${isServed && !isRated ? `<button class="rate-order-btn" data-rate-order="${escapeHTML(order.id)}"><i data-lucide="star"></i> Calificar platillos</button>` : ''}
                 ${isRated ? '<span class="rated-badge"><i data-lucide="check-circle"></i> Calificado</span>' : ''}
             </div>
@@ -1166,8 +1218,9 @@ function renderTrackOrders() {
                 <div class="track-order-footer">
                     <div class="track-total">
                         <span class="track-total-label">Total</span>
-                        <span class="track-total-value gradient-text">${CONFIG.currency}${Number(order.total) || 0}</span>
+                        <span class="track-total-value gradient-text">${CONFIG.currency}${formatMoney(order.total)}</span>
                     </div>
+                    <div class="tax-breakdown">Incluye IVA (10%): ${CONFIG.currency}${formatMoney(getIncludedTax(order.total))}</div>
                     ${!isServed ? `
                         <div class="track-eta">
                         <span class="track-eta-label">Tiempo estimado</span>
@@ -1574,6 +1627,20 @@ function handleMouseMove(e) {
 
 function setupEventListeners() {
 
+    if (DOM.tableEntryForm) {
+        DOM.tableEntryForm.addEventListener('submit', event => {
+            event.preventDefault();
+            const rawTable = DOM.tableEntry?.value.trim() || '';
+            const table = Number(rawTable);
+            if (!/^\d{1,3}$/.test(rawTable) || !Number.isInteger(table) || table < 1 || table > 100) {
+                showToast('Ingresa un número de mesa entre 1 y 100.', 'warning');
+                DOM.tableEntry?.focus();
+                return;
+            }
+            setTable(String(table));
+        });
+    }
+
     // 1. UNIVERSAL CLICK DELEGATION
     document.addEventListener('click', (e) => {
         const target = e.target;
@@ -1834,6 +1901,7 @@ function loadFromStorage() {
                 id: String(order.id),
                 items: order.items.map(cleanItem).filter(Boolean),
                 total: Number(order.total) || 0,
+                trackingToken: typeof order.trackingToken === 'string' && /^[0-9a-f-]{36}$/i.test(order.trackingToken) ? order.trackingToken : null,
                 timestamp: typeof order.timestamp === 'string' ? order.timestamp : ''
             })).filter(order => order.items.length > 0) : [];
             state.ratings = parsed.ratings && typeof parsed.ratings === 'object' && !Array.isArray(parsed.ratings) ? parsed.ratings : {};
@@ -1898,48 +1966,30 @@ function throttle(func, limit) {
  * Realtime subscription for customer's specific order
  */
 function subscribeToOrderUpdates(orderNumber) {
-    if (typeof supabaseClient === 'undefined') return;
-
-
-    // Ensure we don't have multiple subscriptions for the same order
-    const channelName = `cust-order-${orderNumber}`;
-
-    const channel = kitchenSupabaseClient
-        .channel(channelName)
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'pedidos',
-            filter: `id=eq.${orderNumber}`
-        }, (payload) => {
-            const statusMap = {
-                'pendiente': 'received',
-                'en preparación': 'preparing',
-                'preparando': 'preparing',
-                'listo': 'ready',
-                'entregado': 'served',
-                'servido': 'served'
-            };
-            const estado = String(payload.new.estado || '').trim().toLocaleLowerCase('es');
-            const newStatus = statusMap[estado] || 'received';
-            updateOrderStatus(orderNumber, newStatus);
-
-            // Show toast for transparency
-            const statusEmojis = { 'preparing': '👨‍🍳', 'ready': '🍽️', 'served': '✅' };
-            const emoji = statusEmojis[newStatus] || '🔔';
-            const statuses = { received: 'recibido', preparing: 'en preparación', ready: 'listo', served: 'entregado' };
-            const status = statuses[newStatus] || newStatus;
-            showToast(`${emoji} Estado del pedido n.º ${orderNumber}: ${status}`);
-
-            // Auto-trigger rating when order is served
-            if (newStatus === 'served') {
-                setTimeout(() => showRatingModal(orderNumber), 5000);
-            }
-        })
-        .subscribe((status) => {
+    const order = state.orders.find(item => String(item.id) === String(orderNumber));
+    if (!kitchenSupabaseClient || !order?.trackingToken || orderStatusPollers.has(String(orderNumber))) return;
+    const statusMap = { 'pendiente': 'received', 'en preparación': 'preparing', preparando: 'preparing', listo: 'ready', entregado: 'served', servido: 'served' };
+    const poll = async () => {
+        const { data, error } = await kitchenSupabaseClient.rpc('get_order_status', {
+            p_order_id: Number(orderNumber), p_tracking_token: order.trackingToken
         });
-
-    return channel;
+        if (error || !data?.status) return;
+        const newStatus = statusMap[String(data.status).trim().toLocaleLowerCase('es')] || 'received';
+        const previousStatus = state.orders.find(item => String(item.id) === String(orderNumber))?.status;
+        if (newStatus === previousStatus) return;
+        updateOrderStatus(orderNumber, newStatus);
+        saveToStorage();
+        const labels = { received: 'recibido', preparing: 'en preparación', ready: 'listo', served: 'entregado' };
+        const emojis = { preparing: '👨‍🍳', ready: '🍽️', served: '✅' };
+        showToast(`${emojis[newStatus] || '🔔'} Estado del pedido n.º ${orderNumber}: ${labels[newStatus] || newStatus}`);
+        if (newStatus === 'served') {
+            clearInterval(orderStatusPollers.get(String(orderNumber)));
+            orderStatusPollers.delete(String(orderNumber));
+            setTimeout(() => showRatingModal(orderNumber), 5000);
+        }
+    };
+    orderStatusPollers.set(String(orderNumber), setInterval(poll, 12000));
+    poll();
 }
 
 window.updateCartItemQty = updateCartItemQty;
@@ -2128,7 +2178,7 @@ async function saveRatingsToSupabase(orderNumber, itemRatings) {
  * Fetch aggregated item ratings from Supabase
  */
 async function fetchItemRatings() {
-    if (typeof SUPABASE_URL === 'undefined' || SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+    if (!RESTAURANT_CONFIG.menu.url || !RESTAURANT_CONFIG.menu.anonKey) {
         console.warn('Supabase not configured. No ratings to fetch.');
         return;
     }

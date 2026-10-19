@@ -36,9 +36,33 @@
             <header class="welcome-header">
                 <div class="welcome-logo"><img src="assets/images/logo.png" alt="" width="72" height="72"></div>
                 <h1 id="welcomeTitle" class="welcome-title">Bienvenido a Rannaghor</h1>
-                <p class="welcome-subtitle">Para ver el menú y pedir desde tu mesa, escanea el código QR que está en ella.</p>
-                <p class="welcome-instruction">Si el QR no funciona, solicita ayuda a nuestro equipo.</p>
+                <p class="welcome-subtitle">Elige a qué sección quieres entrar.</p>
+                <p class="welcome-instruction">Los clientes también pueden entrar escaneando el QR de su mesa.</p>
             </header>
+            <div class="entry-options">
+                <section class="entry-card">
+                    <div class="entry-card-icon"><i data-lucide="utensils"></i></div>
+                    <h2>Menú para clientes</h2>
+                    <p>Ingresa el número de mesa para ver el menú y hacer un pedido.</p>
+                    <form id="tableEntryForm" class="entry-table-form">
+                        <label for="tableEntry">Número de mesa</label>
+                        <input id="tableEntry" name="table" type="number" min="1" max="100" step="1" inputmode="numeric" placeholder="Ej. 1" required>
+                        <button class="btn btn-primary" type="submit">Abrir menú</button>
+                    </form>
+                </section>
+                <a class="entry-card entry-link" href="management/">
+                    <div class="entry-card-icon"><i data-lucide="settings"></i></div>
+                    <h2>Administración</h2>
+                    <p>Gestionar platos y generar códigos QR para las mesas.</p>
+                    <span class="entry-link-label">Entrar a administración <i data-lucide="arrow-right"></i></span>
+                </a>
+                <a class="entry-card entry-link" href="management/kitchen.html">
+                    <div class="entry-card-icon"><i data-lucide="chef-hat"></i></div>
+                    <h2>Cocina</h2>
+                    <p>Ver pedidos y actualizar su estado de preparación.</p>
+                    <span class="entry-link-label">Abrir cocina <i data-lucide="arrow-right"></i></span>
+                </a>
+            </div>
         </div>
     </section>
 
@@ -135,6 +159,7 @@
                     <span>Total</span>
                     <span id="total" class="gradient-text"><span class="currency">Gs. </span>0</span>
                 </div>
+                <p id="taxBreakdown" class="tax-breakdown" aria-live="polite"></p>
 
                 <!-- Special Instructions -->
                 <div class="cart-instructions">
@@ -218,6 +243,8 @@
                         </button>
                     </div>
                 </div>
+
+                <div id="demoMenuNotice" class="demo-menu-notice hidden" role="status" aria-live="polite"></div>
 
                 <!-- Category Tabs -->
                 <div class="category-tabs scroll-reveal" role="tablist" aria-label="Categorías del menú">
@@ -651,6 +678,7 @@
     </button>
 
     <!-- Scripts -->
+    <script src="js/app-config.js"></script>
     <script src="js/script.js"></script>
 </body>
 

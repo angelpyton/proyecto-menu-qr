@@ -38,6 +38,13 @@
             flex-direction: column;
             padding-top: var(--nav-height); /* Space for fixed nav */
         }
+        .staff-login { max-width: 440px; margin: 12vh auto; padding: 2rem; border: 1px solid rgba(255,255,255,.15); border-radius: 16px; background: #19130f; }
+        .staff-login form, .staff-login label { display: grid; gap: .75rem; }
+        .staff-login form { gap: 1rem; }
+        .staff-login input { padding: .8rem; }
+        .staff-login button, .staff-logout { padding: .65rem 1rem; cursor: pointer; }
+        body:not(.staff-authenticated) .admin-nav, body:not(.staff-authenticated) .admin-container, body:not(.staff-authenticated) .admin-footer { display: none; }
+        body.staff-authenticated .staff-login { display: none; }
 
         /* Navigation Style (Matches Kitchen) */
         .admin-nav {
@@ -355,6 +362,16 @@
 </head>
 
 <body>
+    <section id="staffLogin" class="staff-login" aria-labelledby="staffLoginTitle">
+        <h1 id="staffLoginTitle">Acceso del personal</h1>
+        <p>Inicia sesión con tu cuenta del restaurante.</p>
+        <form id="staffLoginForm">
+            <label>Correo <input name="email" type="email" autocomplete="username" required></label>
+            <label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>
+            <button type="submit">Iniciar sesión</button>
+        </form>
+        <p id="staffLoginMessage" role="status"></p>
+    </section>
     <nav class="admin-nav">
         <div class="admin-nav-container">
             <div class="nav-brand">
@@ -370,6 +387,7 @@
             </div>
 
             <div class="nav-actions">
+                <button id="staffLogout" type="button" class="staff-logout">Cerrar sesión</button>
                 <a href="kitchen.html" target="_blank" class="btn btn-primary btn-sm">
                     <i data-lucide="chef-hat"></i>
                     <span>Kitchen</span>
@@ -452,13 +470,13 @@
         </footer>
     </div>
 
+    <script src="../js/app-config.js"></script>
     <script src="../js/management.js"></script>
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-        const SUPABASE_URL = 'https://gudjaroffkrwmsqvczip.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_NbuvsGvR625a6e9dIXAPZw_inbC3j5A';
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { url, anonKey } = window.RESTAURANT_CONFIG?.menu || {};
+        const supabase = url && anonKey ? createClient(url, anonKey) : null;
 
         (() => {
             const form = document.getElementById('productForm');
@@ -480,6 +498,11 @@
             let products = [];
 
             async function loadProducts() {
+                if (!supabase) {
+                    message.textContent = 'Configura la URL y la clave pública de Supabase en js/app-config.js.';
+                    tableBody.innerHTML = '<tr><td class="products-empty" colspan="5">Falta configurar Supabase.</td></tr>';
+                    return;
+                }
                 tableBody.innerHTML = '<tr><td class="products-empty" colspan="5">Cargando platos…</td></tr>';
                 const { data, error } = await supabase
                     .from('platos')
@@ -643,7 +666,33 @@
                 message.textContent = 'Edición cancelada.';
             });
 
-            loadProducts();
+            const loginForm = document.getElementById('staffLoginForm');
+            const loginMessage = document.getElementById('staffLoginMessage');
+            const activateStaff = async session => {
+                const permitted = session?.user?.app_metadata?.role === 'staff';
+                document.body.classList.toggle('staff-authenticated', permitted);
+                if (!permitted) {
+                    loginMessage.textContent = session?.user ? 'Esta cuenta no tiene permisos de personal.' : '';
+                    return;
+                }
+                await loadProducts();
+            };
+            loginForm.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (!supabase) { loginMessage.textContent = 'Configura Supabase en js/app-config.js.'; return; }
+                const values = new FormData(loginForm);
+                loginMessage.textContent = 'Conectando…';
+                const { data, error } = await supabase.auth.signInWithPassword({ email: values.get('email'), password: values.get('password') });
+                if (error) { loginMessage.textContent = 'No se pudo iniciar sesión. Revisa el correo y la contraseña.'; return; }
+                await activateStaff(data.session);
+            });
+            document.getElementById('staffLogout').addEventListener('click', () => supabase?.auth.signOut());
+            if (supabase) {
+                supabase.auth.onAuthStateChange((_event, session) => activateStaff(session));
+                supabase.auth.getSession().then(({ data }) => activateStaff(data.session));
+            } else {
+                loginMessage.textContent = 'Configura la URL y la clave pública de Supabase en js/app-config.js.';
+            }
         })();
     </script>
 </body>

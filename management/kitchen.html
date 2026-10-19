@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -19,6 +19,16 @@
 </head>
 
 <body class="kitchen-body">
+    <section id="staffLogin" class="staff-login" aria-labelledby="staffLoginTitle">
+        <h1 id="staffLoginTitle">Acceso del personal</h1>
+        <p>Inicia sesión con tu cuenta del restaurante.</p>
+        <form id="staffLoginForm">
+            <label>Correo <input name="email" type="email" autocomplete="username" required></label>
+            <label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>
+            <button type="submit">Iniciar sesión</button>
+        </form>
+        <p id="staffLoginMessage" role="status"></p>
+    </section>
     <nav class="kitchen-nav">
         <div class="kitchen-nav-container">
             <div class="nav-brand">
@@ -40,6 +50,7 @@
                     <button id="clearSearch" class="btn-clear hidden">&times;</button>
                 </div>
             </div>
+            <button id="staffLogout" type="button" class="staff-logout">Cerrar sesión</button>
         </div>
     </nav>
 
@@ -115,6 +126,7 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/app-config.js"></script>
     <script src="../js/supabase-config.js"></script>
     <script src="../js/kitchen.js"></script>
 </body>

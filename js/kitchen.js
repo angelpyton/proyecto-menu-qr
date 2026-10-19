@@ -83,35 +83,52 @@ const DOM = {
  * Initialize Dashboard
  */
 async function init() {
-
-    setupEventListeners();
-    // Subscribe before the initial fetch so updates are not missed while data loads.
-    setupRealtime();
-    await Promise.all([
-        fetchActiveOrders(),
-        fetchWaiterCalls()
-    ]);
-
-    // Realtime is the primary path; this low-frequency poll recovers after
-    // dropped connections without hammering Supabase every few seconds.
-    setInterval(async () => {
-        if (backgroundSyncInProgress) return;
-        backgroundSyncInProgress = true;
-        try {
-            await Promise.all([
-                fetchActiveOrders(),
-                fetchWaiterCalls()
-            ]);
-        } finally {
-            backgroundSyncInProgress = false;
+    if (!supabaseClient) {
+        const message = document.getElementById('staffLoginMessage');
+        if (message) message.textContent = 'Configura la URL y la clave pública del proyecto Supabase en js/app-config.js.';
+        return;
+    }
+    const loginForm = document.getElementById('staffLoginForm');
+    const loginMessage = document.getElementById('staffLoginMessage');
+    let activeStaffSession = false;
+    const activate = async (session) => {
+        if (!session?.user || session.user.app_metadata?.role !== 'staff') {
+            activeStaffSession = false;
+            document.body.classList.remove('staff-authenticated');
+            loginMessage.textContent = session?.user ? 'Esta cuenta no tiene permisos de personal.' : '';
+            return;
         }
-    }, 15000);
-
-    // Initial render
-    renderDashboard();
-
-    // Initial Lucide icons render
-    if (window.lucide) lucide.createIcons();
+        if (activeStaffSession) return;
+        activeStaffSession = true;
+        document.body.classList.add('staff-authenticated');
+        setupEventListeners();
+        setupRealtime();
+        await Promise.all([fetchActiveOrders(), fetchWaiterCalls()]);
+        if (!window.kitchenSyncStarted) {
+            window.kitchenSyncStarted = true;
+            setInterval(async () => {
+                if (backgroundSyncInProgress) return;
+                backgroundSyncInProgress = true;
+                try { await Promise.all([fetchActiveOrders(), fetchWaiterCalls()]); }
+                finally { backgroundSyncInProgress = false; }
+            }, 15000);
+        }
+        renderDashboard();
+    };
+    loginForm?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const values = new FormData(loginForm);
+        loginMessage.textContent = 'Conectando…';
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: values.get('email'), password: values.get('password')
+        });
+        if (error) { loginMessage.textContent = 'No se pudo iniciar sesión. Revisa el correo y la contraseña.'; return; }
+        await activate(data.session);
+    });
+    document.getElementById('staffLogout')?.addEventListener('click', () => supabaseClient.auth.signOut());
+    supabaseClient.auth.onAuthStateChange((_event, session) => activate(session));
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    await activate(session);
 }
 
 /**
